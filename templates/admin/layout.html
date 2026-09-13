@@ -1,0 +1,1915 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <title>{% block title %}Admin Panel | LMS{% endblock %}</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+
+
+  <!-- Bootstrap 5 -->
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Font Awesome -->
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+
+
+  <style>
+
+    /* ===== GLOBAL SIZING OVERRIDES (COMPACT) ===== */
+
+    :root {
+
+      --bs-body-font-size: 0.8rem;
+
+      --bs-body-line-height: 1.4;
+
+    }
+
+
+
+    * {
+
+      margin: 0;
+
+      padding: 0;
+
+    }
+
+
+
+    /* ===== Body & Layout ===== */
+
+    body {
+
+      min-height: 100vh;
+
+      display: flex;
+
+      flex-direction: column;
+
+      font-size: 0.8rem;
+
+      line-height: 1.4;
+
+    }
+
+
+
+    .admin-wrapper {
+
+      display: flex;
+
+      flex: 1;
+
+      flex-direction: row;
+
+    }
+
+
+
+    /* ===== Sidebar ===== */
+
+    .sidebar {
+
+      width: 220px;
+
+      background-color: #343a40;
+
+      color: white;
+
+      position: fixed;
+
+      top: 48px; /* reduced navbar height */
+
+      bottom: 0;
+
+      overflow-y: auto;
+
+      transition: all 0.3s ease;
+
+      z-index: 1040;
+
+      font-size: 0.75rem;
+
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+
+    }
+
+
+
+    .sidebar.collapsed {
+
+      width: 50px;
+
+    }
+
+
+
+    .sidebar h4 {
+
+      padding: 0.6rem 0.8rem;
+
+      margin: 0;
+
+      background-color: #23272b;
+
+      border-bottom: 1px solid #495057;
+
+      white-space: nowrap;
+
+      overflow: hidden;
+
+      text-overflow: ellipsis;
+
+      font-size: 0.8rem;
+
+      font-weight: 600;
+
+    }
+
+
+
+    .sidebar.collapsed h4 {
+
+      text-align: center;
+
+      font-size: 1rem;
+
+    }
+
+
+
+    .sidebar a {
+
+      color: #adb5bd;
+
+      padding: 0.6rem 1rem;
+
+      display: flex;
+
+      align-items: center;
+
+      text-decoration: none;
+
+      white-space: nowrap;
+
+      overflow: hidden;
+
+      text-overflow: ellipsis;
+
+      transition: color 0.2s;
+
+      font-size: 0.75rem;
+
+      gap: 0.5rem;
+
+    }
+
+
+
+    .sidebar a i {
+
+      min-width: 18px;
+
+      text-align: center;
+
+      font-size: 0.9rem;
+
+    }
+
+
+
+    .sidebar.collapsed a {
+
+      justify-content: center;
+
+      padding: 0.6rem 0;
+
+    }
+
+
+
+    .sidebar a:hover,
+
+    .sidebar a.active {
+
+      background-color: #495057;
+
+      color: #fff;
+
+    }
+
+
+
+    .sidebar.collapsed a span.link-text {
+
+      display: none;
+
+    }
+
+
+
+    .sidebar-section {
+
+      font-size: 0.65rem;
+
+      padding: 0.4rem 0.8rem;
+
+      font-weight: 700;
+
+      text-transform: uppercase;
+
+      letter-spacing: 0.5px;
+
+    }
+
+
+
+    .sidebar .badge {
+
+      font-size: 0.6rem;
+
+      padding: 0.25rem 0.4rem;
+
+    }
+
+
+
+    /* ===== Navbar ===== */
+
+    nav.navbar {
+
+      position: fixed;
+
+      top: 0;
+
+      left: 0;
+
+      right: 0;
+
+      height: 48px;
+
+      background-color: #f8f9fa;
+
+      border-bottom: 1px solid #dee2e6;
+
+      z-index: 1050;
+
+      transition: margin-left 0.3s ease;
+
+      padding: 0.4rem 1rem;
+
+    }
+
+
+
+    nav.navbar .navbar-brand {
+
+      font-size: 0.95rem;
+
+      font-weight: 600;
+
+    }
+
+
+
+    nav.navbar .container-fluid {
+
+      padding: 0 0.5rem;
+
+    }
+
+
+
+    nav.navbar .btn {
+
+      padding: 0.35rem 0.6rem;
+
+      font-size: 0.75rem;
+
+    }
+
+
+
+    nav.navbar .text-muted {
+
+      font-size: 0.75rem;
+
+    }
+
+
+
+    /* ===== Content Area ===== */
+
+    .content-area {
+
+      flex: 1;
+
+      margin-left: 220px;
+
+      padding: 12px 15px;
+
+      padding-top: 64px;
+
+      transition: margin-left 0.3s ease;
+
+      background-color: #f5f6fa;
+
+    }
+
+
+
+    .content-area.collapsed {
+
+      margin-left: 50px;
+
+    }
+
+
+
+    /* ===== Footer ===== */
+
+    footer {
+
+      margin-left: 220px;
+
+      background-color: #343a40;
+
+      color: #ccc;
+
+      text-align: center;
+
+      padding: 0.6rem;
+
+      transition: margin-left 0.3s ease;
+
+      margin-top: auto;
+
+      font-size: 0.75rem;
+
+    }
+
+
+
+    footer.collapsed {
+
+      margin-left: 50px;
+
+    }
+
+
+
+    footer p {
+
+      margin: 0;
+
+    }
+
+
+
+    /* ===== Overlay for Mobile ===== */
+
+    .overlay {
+
+      display: none;
+
+      position: fixed;
+
+      top: 48px;
+
+      left: 0;
+
+      width: 100%;
+
+      height: calc(100% - 48px);
+
+      background-color: rgba(0, 0, 0, 0.4);
+
+      z-index: 1039;
+
+    }
+
+
+
+    .overlay.active {
+
+      display: block;
+
+    }
+
+
+
+    /* ===== Card & Component Sizing ===== */
+
+    .card {
+
+      margin-bottom: 0.75rem;
+
+      border-radius: 0.4rem;
+
+      border: 1px solid #dee2e6;
+
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+    }
+
+
+
+    .card-header {
+
+      padding: 0.6rem 0.8rem;
+
+      font-size: 0.8rem;
+
+      font-weight: 600;
+
+      background-color: #f8f9fa;
+
+      border-bottom: 1px solid #dee2e6;
+
+    }
+
+
+
+    .card-body {
+
+      padding: 0.8rem;
+
+      font-size: 0.75rem;
+
+    }
+
+
+
+    .card h4,
+
+    .card h5,
+
+    .card h6 {
+
+      font-size: 0.9rem;
+
+      margin-bottom: 0.4rem;
+
+    }
+
+
+
+    /* ===== Form Elements ===== */
+
+    .form-label {
+
+      font-size: 0.75rem;
+
+      margin-bottom: 0.25rem;
+
+      font-weight: 500;
+
+    }
+
+
+
+    .form-control,
+
+    .form-select {
+
+      font-size: 0.75rem;
+
+      padding: 0.35rem 0.5rem;
+
+      height: 32px;
+
+      border-radius: 0.3rem;
+
+    }
+
+
+
+    .form-control::placeholder {
+
+      font-size: 0.7rem;
+
+    }
+
+
+
+    textarea.form-control {
+
+      height: auto;
+
+      min-height: 60px;
+
+    }
+
+
+
+    /* ===== Buttons ===== */
+
+    .btn {
+
+      font-size: 0.75rem;
+
+      padding: 0.35rem 0.7rem;
+
+      border-radius: 0.3rem;
+
+    }
+
+
+
+    .btn-sm {
+
+      font-size: 0.7rem;
+
+      padding: 0.25rem 0.5rem;
+
+    }
+
+
+
+    .btn-lg {
+
+      font-size: 0.8rem;
+
+      padding: 0.5rem 1rem;
+
+    }
+
+
+
+    .btn i {
+
+      margin-right: 0.3rem;
+
+      font-size: 0.85rem;
+
+    }
+
+
+
+    /* ===== Alert & Badges ===== */
+
+    .alert {
+
+      padding: 0.6rem 0.8rem;
+
+      margin-bottom: 0.75rem;
+
+      font-size: 0.75rem;
+
+      border-radius: 0.3rem;
+
+    }
+
+
+
+    .badge {
+
+      font-size: 0.65rem;
+
+      padding: 0.3rem 0.5rem;
+
+      border-radius: 0.2rem;
+
+    }
+
+
+
+    /* ===== Table ===== */
+
+    .table {
+
+      font-size: 0.75rem;
+
+      margin-bottom: 0;
+
+      border-collapse: collapse;
+
+    }
+
+
+
+    .table thead {
+
+      font-size: 0.7rem;
+
+      font-weight: 600;
+
+      background-color: #f8f9fa;
+
+    }
+
+
+
+    .table th,
+
+    .table td {
+
+      padding: 0.5rem;
+
+      border: 1px solid #dee2e6;
+
+    }
+
+
+
+    .table tbody tr:hover {
+
+      background-color: #f9f9f9;
+
+    }
+
+
+
+    /* ===== Breadcrumb ===== */
+
+    .breadcrumb {
+
+      font-size: 0.7rem;
+
+      padding: 0.4rem 0;
+
+      margin-bottom: 0.75rem;
+
+      background-color: transparent;
+
+    }
+
+
+
+    .breadcrumb-item {
+
+      padding: 0;
+
+      margin: 0;
+
+    }
+
+
+
+    .breadcrumb-item.active {
+
+      font-weight: 600;
+
+    }
+
+
+
+    /* ===== Dark Mode ===== */
+
+    body.dark-mode {
+
+      background-color: #121212;
+
+      color: #e0e0e0;
+
+    }
+
+
+
+    .navbar.dark-mode {
+
+      background-color: #1f1f1f;
+
+      border-bottom-color: #333;
+
+    }
+
+
+
+    .sidebar.dark-mode {
+
+      background-color: #1e1e1e;
+
+      color: #ddd;
+
+    }
+
+
+
+    .sidebar.dark-mode a {
+
+      color: #ccc;
+
+    }
+
+
+
+    .sidebar.dark-mode a:hover,
+
+    .sidebar.dark-mode a.active {
+
+      background-color: #333;
+
+      color: #fff;
+
+    }
+
+
+
+    .content-area.dark-mode {
+
+      background-color: #1a1a1a;
+
+    }
+
+
+
+    .card.dark-mode {
+
+      background-color: #2a2a2a;
+
+      color: #e0e0e0;
+
+      border-color: #444;
+
+    }
+
+
+
+    .card-header.dark-mode {
+
+      background-color: #333;
+
+      border-color: #444;
+
+    }
+
+
+
+    .table.dark-mode {
+
+      color: #e0e0e0;
+
+    }
+
+
+
+    .table.dark-mode th,
+
+    .table.dark-mode td {
+
+      border-color: #444;
+
+    }
+
+
+
+    .table.dark-mode tbody tr:hover {
+
+      background-color: #333;
+
+    }
+
+
+
+    .alert.dark-mode {
+
+      background-color: #2e2e2e;
+
+      color: #f1f1f1;
+
+      border-color: #444;
+
+    }
+
+
+
+    .dropdown-menu.dark-mode {
+
+      background-color: #2a2a2a;
+
+      color: #fff;
+
+      border-color: #444;
+
+    }
+
+
+
+    .dropdown-menu.dark-mode .dropdown-item {
+
+      color: #ccc;
+
+    }
+
+
+
+    .dropdown-menu.dark-mode .dropdown-item:hover {
+
+      background-color: #444;
+
+      color: white;
+
+    }
+
+
+
+    /* ===== Accordion ===== */
+
+    .accordion-button {
+
+      padding: 0.6rem 0.8rem;
+
+      font-size: 0.75rem;
+
+      font-weight: 500;
+
+    }
+
+
+
+    .accordion-body {
+
+      padding: 0.5rem 0;
+
+    }
+
+
+
+    /* ===== Responsive Mobile ===== */
+
+    @media (max-width: 992px) {
+
+      .sidebar {
+
+        left: -220px;
+
+        width: 220px;
+
+        height: calc(100% - 48px);
+
+        top: 48px;
+
+      }
+
+
+
+      .sidebar.open {
+
+        left: 0;
+
+      }
+
+
+
+      .content-area,
+
+      footer {
+
+        margin-left: 0 !important;
+
+        padding-top: 64px;
+
+      }
+
+
+
+      nav.navbar {
+
+        margin-left: 0;
+
+      }
+
+
+
+      #sidebarClose {
+
+        display: inline-flex;
+
+        cursor: pointer;
+
+      }
+
+    }
+
+
+
+    @media (max-width: 768px) {
+
+      :root {
+
+        --bs-body-font-size: 0.75rem;
+
+      }
+
+
+
+      body {
+
+        font-size: 0.75rem;
+
+      }
+
+
+
+      .content-area {
+
+        padding: 10px 12px;
+
+      }
+
+
+
+      .card-body {
+
+        padding: 0.6rem;
+
+      }
+
+
+
+      .table {
+
+        font-size: 0.7rem;
+
+      }
+
+
+
+      .table th,
+
+      .table td {
+
+        padding: 0.35rem;
+
+      }
+
+    }
+
+
+
+    @media (min-width: 993px) {
+
+      #sidebarClose {
+
+        display: none;
+
+      }
+
+    }
+
+
+
+    /* ===== Collapsed Sidebar (Icon Only) ===== */
+
+    .sidebar.collapsed h4,
+
+    .sidebar.collapsed .sidebar-section,
+
+    .sidebar.collapsed .badge,
+
+    .sidebar.collapsed .accordion-button,
+
+    .sidebar.collapsed .accordion-body,
+
+    .sidebar.collapsed small {
+
+      display: none !important;
+
+    }
+
+
+
+    .sidebar.collapsed a {
+
+      justify-content: center !important;
+
+      font-size: 0 !important;
+
+      padding: 0.5rem 0 !important;
+
+    }
+
+
+
+    .sidebar.collapsed a i {
+
+      font-size: 1rem !important;
+
+      margin: 0 !important;
+
+    }
+
+
+
+    /* Ensure content aligns when collapsed */
+
+    nav.navbar.collapsed,
+
+    .content-area.collapsed,
+
+    footer.collapsed {
+
+      margin-left: 50px !important;
+
+    }
+
+
+
+    /* ===== Utility Classes ===== */
+
+    .text-sm {
+
+      font-size: 0.7rem;
+
+    }
+
+
+
+    .text-xs {
+
+      font-size: 0.65rem;
+
+    }
+
+
+
+    .p-compact {
+
+      padding: 0.5rem !important;
+
+    }
+
+
+
+    .m-compact {
+
+      margin: 0.5rem !important;
+
+    }
+
+
+
+    .gap-compact {
+
+      gap: 0.5rem !important;
+
+    }
+
+
+
+  </style>
+
+
+
+</head>
+
+<body>
+
+
+
+  <!-- ROLE-AWARE ADMIN SIDEBAR -->
+
+  <div class="sidebar" id="sidebar">
+
+    <!-- Brand / Header -->
+
+    <h4 class="text-center py-2 d-flex align-items-center justify-content-between" style="background: linear-gradient(90deg, #7b2cbf, #f72585); font-weight:bold; letter-spacing:1px; margin:0;">
+
+      <div>
+
+        <span>LMS</span>
+
+        <small class="d-block mt-0" style="font-size: 0.6rem; font-weight: normal; letter-spacing: 0;">
+
+          {% if current_user.is_superadmin %}
+
+            ⭐ Super
+
+          {% elif current_user.is_finance_admin %}
+
+            💰 Finance
+
+          {% elif current_user.is_academic_admin %}
+
+            📚 Academic
+
+          {% elif current_user.is_admissions_admin %}
+
+            👥 Admissions
+
+          {% endif %}
+
+        </small>
+
+      </div>
+
+      <button class="btn btn-sm btn-light d-lg-none me-1" id="sidebarClose" aria-label="Close sidebar">
+
+        <i class="fas fa-times"></i>
+
+      </button>
+
+    </h4>
+
+
+
+    <!-- Dashboard -->
+
+    <a href="{{ url_for('admin.dashboard') }}" class="{% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+
+      <i class="fas fa-home"></i>
+
+      <span class="link-text">Dashboard</span>
+
+    </a>
+
+
+
+    <!-- ============================================================
+
+         MANAGEMENT SECTION (SuperAdmin Only)
+
+         ============================================================ -->
+
+    {% if current_user.is_superadmin %}
+
+      <div class="sidebar-section" style="background: #6f42c1;">Management</div>
+
+
+
+      <a href="{{ url_for('admin.view_database') }}" class="{% if request.endpoint == 'admin.view_database' %}active{% endif %}">
+
+        <i class="fas fa-database"></i>
+
+        <span class="link-text">Database</span>
+
+      </a>
+
+
+
+      <a href="{{ url_for('admin.register_user') }}" class="{% if request.endpoint == 'admin.register_user' %}active{% endif %}">
+
+        <i class="fas fa-user-plus"></i>
+
+        <span class="link-text">Register User</span>
+
+      </a>
+
+      <a href="{{ url_for('admin.manage_users') }}" class="{% if request.endpoint in ['admin.manage_users', 'admin.edit_user'] %}active{% endif %}">
+
+        <i class="fas fa-user-edit"></i>
+
+        <span class="link-text">Manage Users</span>
+
+      </a>
+
+
+
+      <a href="{{ url_for('admin.teacher_assessment_admin_home') }}" class="{% if request.endpoint.startswith('admin.teacher_assessment') %}active{% endif %}">
+
+        <i class="fas fa-chalkboard-user"></i>
+
+        <span class="link-text">Assessment</span>
+
+      </a>
+
+    {% endif %}
+
+
+
+    <!-- ============================================================
+
+         ADMISSIONS SECTION (Admissions Admin + SuperAdmin)
+
+         ============================================================ -->
+
+    {% if current_user.is_superadmin or current_user.is_admissions_admin %}
+
+      <div class="sidebar-section" style="background: #6610f2;">Admissions</div>
+
+
+
+      <a href="{{ url_for('admin.manage_admissions') }}" class="{% if request.endpoint == 'admin.manage_admissions' %}active{% endif %}">
+
+        <i class="fas fa-file-alt"></i>
+
+        <span class="link-text">Admissions</span>
+
+      </a>
+
+
+
+      <a href="{{ url_for('admin.register_continuing_student') }}" class="{% if request.endpoint == 'admin.register_continuing_student' %}active{% endif %}">
+
+        <i class="fas fa-user-graduate"></i>
+
+        <span class="link-text">Register Student</span>
+
+      </a>
+
+    {% endif %}
+
+
+
+    <!-- ============================================================
+
+         ACADEMIC SECTION (Academic Admin + SuperAdmin)
+
+         ============================================================ -->
+
+    {% if current_user.is_superadmin or current_user.is_academic_admin %}
+
+      <div class="sidebar-section" style="background: #0d6efd;">Academic</div>
+
+
+
+      <!-- Virtual Class -->
+
+      <div class="accordion mt-0" id="virtualClassAccordion">
+
+        <div class="accordion-item bg-transparent border-0">
+
+          <h2 class="accordion-header" id="headingVC">
+
+            <button class="accordion-button collapsed px-3 py-1" style="background: linear-gradient(90deg, #ff7e5f, #feb47b); color:#fff; font-weight:500;" type="button" data-bs-toggle="collapse" data-bs-target="#collapseVC" aria-expanded="false" aria-controls="collapseVC">
+
+              <i class="fas fa-chalkboard"></i>
+
+              <span class="link-text ms-2">Classes</span>
+
+            </button>
+
+          </h2>
+
+          <div id="collapseVC" class="accordion-collapse collapse" aria-labelledby="headingVC" data-bs-parent="#virtualClassAccordion">
+
+            <div class="accordion-body p-0">
+
+              <a href="{{ url_for('admin.manage_assignments') }}" class="d-block px-3 py-1 text-decoration-none text-light {% if request.endpoint == 'admin.manage_assignments' %}bg-secondary{% endif %}">
+
+                <i class="fas fa-tasks"></i> Assignments
+
+              </a>
+
+              <a href="{{ url_for('admin.manage_events') }}" class="d-block px-3 py-1 text-decoration-none text-light {% if request.endpoint == 'admin.manage_events' %}bg-secondary{% endif %}">
+
+                <i class="fas fa-calendar-alt"></i> Events
+
+              </a>
+
+              <a href="{{ url_for('admin.manage_courses') }}" class="d-block px-3 py-1 text-decoration-none text-light {% if request.endpoint == 'admin.manage_courses' %}bg-secondary{% endif %}">
+
+                <i class="fas fa-book"></i> Courses
+
+              </a>
+
+              <a href="{{ url_for('admin.manage_timetable') }}" class="d-block px-3 py-1 text-decoration-none text-light {% if request.endpoint == 'admin.manage_timetable' %}bg-secondary{% endif %}">
+
+                <i class="fas fa-clock"></i> Timetable
+
+              </a>
+
+              <a href="{{ url_for('admin.admin_exam_timetable') }}" class="d-block px-3 py-1 text-decoration-none text-light {% if request.endpoint == 'admin.admin_exam_timetable' %}bg-secondary{% endif %}">
+
+                <i class="fas fa-calendar-check"></i> Exam Times
+
+              </a>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- Grading -->
+
+      <div class="sidebar-section" style="background: #ff6b6b; margin-top: 0.5rem;">Grading</div>
+
+
+
+      <a href="{{ url_for('admin.result_vetting_list') }}" class="{% if request.endpoint == 'admin.result_vetting_list' %}active{% endif %}">
+
+        <i class="fas fa-chart-bar"></i>
+
+        <span class="link-text">Dashboard</span>
+
+      </a>
+
+
+
+      <div class="accordion mt-0" id="gradingAccordion">
+
+        <div class="accordion-item bg-transparent border-0">
+
+          <h2 class="accordion-header" id="headingGrading">
+
+            <button class="accordion-button collapsed px-3 py-1" style="background: linear-gradient(90deg, #ff6b6b, #ff8787); color:#fff; font-weight:500;" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGrading" aria-expanded="false" aria-controls="collapseGrading">
+
+              <i class="fas fa-tasks"></i>
+
+              <span class="link-text ms-2">Ops</span>
+
+            </button>
+
+          </h2>
+
+          <div id="collapseGrading" class="accordion-collapse collapse" aria-labelledby="headingGrading" data-bs-parent="#gradingAccordion">
+
+            <div class="accordion-body p-0">
+
+              <a href="{{ url_for('admin.view_students') }}" class="d-block px-3 py-1 text-decoration-none text-light {% if request.endpoint == 'admin.view_students' %}bg-secondary{% endif %}">
+
+                <i class="fas fa-list"></i> Results
+
+              </a>
+
+              <a href="{{ url_for('admin.result_vetting_list') }}" class="d-block px-3 py-1 text-decoration-none text-light {% if request.endpoint == 'admin.result_vetting_list' %}bg-secondary{% endif %}">
+
+                <i class="fas fa-clipboard-check"></i> Vetting
+
+              </a>
+
+              <a href="{{ url_for('admin.past_releases') }}" class="d-block px-3 py-1 text-decoration-none text-light {% if request.endpoint == 'admin.past_releases' %}bg-secondary{% endif %}">
+
+                <i class="fas fa-history"></i> Past Releases
+
+              </a>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    {% endif %}
+
+
+
+    <!-- ============================================================
+
+         FINANCE SECTION (Finance Admin + SuperAdmin)
+
+         ============================================================ -->
+
+    {% if current_user.is_superadmin or current_user.is_finance_admin %}
+
+      <div class="sidebar-section" style="background: #198754;">Finance</div>
+
+
+
+      <a href="{{ url_for('admin.assign_fees') }}" class="{% if request.endpoint == 'admin.assign_fees' %}active{% endif %}">
+
+        <i class="fas fa-money-bill-wave"></i>
+
+        <span class="link-text">Fees</span>
+
+      </a>
+
+
+
+      <a href="{{ url_for('admin.review_payments') }}" class="{% if request.endpoint == 'admin.review_payments' %}active{% endif %}">
+
+        <i class="fas fa-receipt"></i>
+
+        <span class="link-text">Payments</span>
+
+      </a>
+
+
+
+      <a href="{{ url_for('admin.manage_promotions') }}" class="{% if request.endpoint == 'admin.manage_promotions' %}active{% endif %}">
+
+        <i class="fas fa-graduation-cap"></i>
+
+        <span class="link-text">Promotions</span>
+
+      </a>
+
+    {% endif %}
+
+
+
+    <!-- ============================================================
+
+         COMMUNICATION SECTION (All Admin Roles)
+
+         ============================================================ -->
+
+    {% if current_user.is_superadmin or current_user.is_finance_admin or current_user.is_academic_admin or current_user.is_admissions_admin %}
+
+      <div class="sidebar-section" style="background: #dc3545;">Comms</div>
+
+
+
+      <a href="{{ url_for('chat.chat_home') }}" class="{% if request.endpoint == 'chat.chat_home' %}active{% endif %}">
+
+        <i class="fas fa-comments"></i>
+
+        <span class="link-text">Chat</span>
+
+      </a>
+
+    {% endif %}
+
+
+
+    <!-- ============================================================
+
+         SETTINGS SECTION (SuperAdmin)
+
+         ============================================================ -->
+
+    {% if current_user.is_superadmin %}
+
+      <div class="sidebar-section" style="background: #17a2b8;">Settings</div>
+
+
+
+      <a href="{{ url_for('admin.result_template_settings') }}" class="{% if request.endpoint == 'admin.result_template_settings' %}active{% endif %}">
+
+        <i class="fas fa-file-pdf"></i>
+
+        <span class="link-text">Templates</span>
+
+      </a>
+
+
+
+      <a href="{{ url_for('admin.password_reset_requests_view') }}" class="{% if request.endpoint == 'admin.password_reset_requests_view' %}active{% endif %}">
+
+        <i class="fas fa-key"></i>
+
+        <span class="link-text">Passwords</span>
+
+      </a>
+
+    {% endif %}
+
+
+
+    <!-- ============================================================
+
+         USER SECTION (All Roles)
+
+         ============================================================ -->
+
+    <div class="sidebar-section" style="background: #6c757d; margin-top: 0.5rem;">User</div>
+
+
+
+    <a href="{{ url_for('admin.profile') }}" class="{% if request.endpoint == 'admin.profile' %}active{% endif %}">
+
+      <i class="fas fa-user-circle"></i>
+
+      <span class="link-text">Profile</span>
+
+    </a>
+
+
+
+    <a href="{{ url_for('admin.logout') }}">
+
+      <i class="fas fa-sign-out-alt"></i>
+
+      <span class="link-text">Logout</span>
+
+    </a>
+
+
+
+  </div>
+
+
+
+  <!-- Overlay for mobile -->
+
+  <div class="overlay" id="overlay"></div>
+
+
+
+  <!-- Navbar -->
+
+  <nav class="navbar navbar-expand-lg" id="top-navbar">
+
+    <div class="container-fluid">
+
+      <button class="btn btn-outline-secondary me-2" id="sidebarToggle" style="padding: 0.3rem 0.6rem;">
+
+        <i class="fas fa-bars"></i>
+
+      </button>
+
+
+
+      <span class="navbar-brand fw-bold">LMS Admin</span>
+
+
+
+      <button class="btn btn-sm btn-outline-secondary ms-auto me-2" id="toggleDarkMode" title="Toggle Dark Mode">
+
+        <i class="fas fa-moon"></i>
+
+      </button>
+
+
+
+      <div class="text-muted" style="font-size: 0.75rem;">{{ current_user.username }}</div>
+
+    </div>
+
+  </nav>
+
+
+
+  <!-- Main Content -->
+
+  <main class="content-area" id="content-area">
+
+    {% if breadcrumbs %}
+
+    <nav aria-label="breadcrumb">
+
+      <ol class="breadcrumb">
+
+        {% for crumb in breadcrumbs %}
+
+          <li class="breadcrumb-item">
+
+            {% if loop.last %}
+
+              <strong>{{ crumb.label }}</strong>
+
+            {% else %}
+
+              <a href="{{ crumb.url }}">{{ crumb.label }}</a>
+
+            {% endif %}
+
+          </li>
+
+        {% endfor %}
+
+      </ol>
+
+    </nav>
+
+    {% endif %}
+
+
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+
+      {% if messages %}
+
+        {% for category, message in messages %}
+
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+
+            {{ message }}
+
+            <button type="button" class="btn-close" data-bs-dismiss="alert" style="width: 1.2rem; height: 1.2rem;"></button>
+
+          </div>
+
+        {% endfor %}
+
+      {% endif %}
+
+    {% endwith %}
+
+
+
+    {% block content %}{% endblock %}
+
+  </main>
+
+
+
+  <!-- Footer -->
+
+  <footer id="footer">
+
+    <p>© {{ current_year }} LMS | Admin</p>
+
+  </footer>
+
+
+
+  <!-- Scripts -->
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+
+    const sidebar = document.getElementById('sidebar');
+
+    const contentArea = document.getElementById('content-area');
+
+    const navbar = document.getElementById('top-navbar');
+
+    const footer = document.getElementById('footer');
+
+    const overlay = document.getElementById('overlay');
+
+    const toggleBtn = document.getElementById('sidebarToggle');
+
+    const body = document.body;
+
+
+
+    const STORAGE_KEY = 'adminSidebarCollapsed';
+
+
+
+    function applySidebarState() {
+
+      if (window.innerWidth > 992) {
+
+        const collapsed = localStorage.getItem(STORAGE_KEY) === 'true';
+
+        if (collapsed) {
+
+          sidebar.classList.add('collapsed');
+
+          contentArea.classList.add('collapsed');
+
+          navbar.classList.add('collapsed');
+
+          footer.classList.add('collapsed');
+
+        } else {
+
+          sidebar.classList.remove('collapsed');
+
+          contentArea.classList.remove('collapsed');
+
+          navbar.classList.remove('collapsed');
+
+          footer.classList.remove('collapsed');
+
+        }
+
+        sidebar.classList.remove('open');
+
+        overlay.classList.remove('active');
+
+      } else {
+
+        sidebar.classList.remove('collapsed');
+
+        contentArea.classList.remove('collapsed');
+
+        navbar.classList.remove('collapsed');
+
+        footer.classList.remove('collapsed');
+
+        sidebar.classList.remove('open');
+
+        overlay.classList.remove('active');
+
+      }
+
+    }
+
+
+
+    function toggleSidebar() {
+
+      if (window.innerWidth <= 992) {
+
+        sidebar.classList.toggle('open');
+
+        overlay.classList.toggle('active');
+
+        body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+
+      } else {
+
+        sidebar.classList.toggle('collapsed');
+
+        contentArea.classList.toggle('collapsed');
+
+        navbar.classList.toggle('collapsed');
+
+        footer.classList.toggle('collapsed');
+
+        const isCollapsed = sidebar.classList.contains('collapsed');
+
+        localStorage.setItem(STORAGE_KEY, isCollapsed);
+
+      }
+
+    }
+
+
+
+    toggleBtn.addEventListener('click', toggleSidebar);
+
+
+
+    document.querySelectorAll('#sidebar a').forEach(link => {
+
+      link.addEventListener('click', () => {
+
+        if (window.innerWidth <= 992 && sidebar.classList.contains('open')) {
+
+          sidebar.classList.remove('open');
+
+          overlay.classList.remove('active');
+
+          body.style.overflow = '';
+
+        }
+
+      });
+
+    });
+
+
+
+    overlay.addEventListener('click', () => {
+
+      sidebar.classList.remove('open');
+
+      overlay.classList.remove('active');
+
+      body.style.overflow = '';
+
+    });
+
+
+
+    const sidebarClose = document.getElementById('sidebarClose');
+
+    if (sidebarClose) {
+
+      sidebarClose.addEventListener('click', () => {
+
+        sidebar.classList.remove('open');
+
+        overlay.classList.remove('active');
+
+        body.style.overflow = '';
+
+      });
+
+    }
+
+
+
+    window.addEventListener('resize', () => {
+
+      if (window.innerWidth > 992) {
+
+        sidebar.classList.remove('open');
+
+        overlay.classList.remove('active');
+
+        body.style.overflow = '';
+
+        applySidebarState();
+
+      } else {
+
+        sidebar.classList.remove('collapsed');
+
+        contentArea.classList.remove('collapsed');
+
+        navbar.classList.remove('collapsed');
+
+        footer.classList.remove('collapsed');
+
+      }
+
+    });
+
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+
+      applySidebarState();
+
+    });
+
+
+
+    const toggleDarkMode = document.getElementById('toggleDarkMode');
+
+
+
+    if (localStorage.getItem('darkMode') === 'enabled') {
+
+      enableDarkMode();
+
+    }
+
+
+
+    toggleDarkMode.addEventListener('click', () => {
+
+      if (body.classList.contains('dark-mode')) {
+
+        disableDarkMode();
+
+      } else {
+
+        enableDarkMode();
+
+      }
+
+    });
+
+
+
+    function updateToggleIcon() {
+
+      const icon = toggleDarkMode.querySelector('i');
+
+      if (body.classList.contains('dark-mode')) {
+
+        icon.classList.remove('fa-moon');
+
+        icon.classList.add('fa-sun');
+
+      } else {
+
+        icon.classList.remove('fa-sun');
+
+        icon.classList.add('fa-moon');
+
+      }
+
+    }
+
+
+
+    function enableDarkMode() {
+
+      body.classList.add('dark-mode');
+
+      navbar.classList.add('dark-mode');
+
+      sidebar.classList.add('dark-mode');
+
+      contentArea.classList.add('dark-mode');
+
+      document.querySelectorAll('.card').forEach(el => el.classList.add('dark-mode'));
+
+      document.querySelectorAll('.card-header').forEach(el => el.classList.add('dark-mode'));
+
+      document.querySelectorAll('.table').forEach(el => el.classList.add('dark-mode'));
+
+      document.querySelectorAll('.alert').forEach(el => el.classList.add('dark-mode'));
+
+      document.querySelectorAll('.dropdown-menu').forEach(el => el.classList.add('dark-mode'));
+
+      localStorage.setItem('darkMode', 'enabled');
+
+      updateToggleIcon();
+
+    }
+
+
+
+    function disableDarkMode() {
+
+      body.classList.remove('dark-mode');
+
+      navbar.classList.remove('dark-mode');
+
+      sidebar.classList.remove('dark-mode');
+
+      contentArea.classList.remove('dark-mode');
+
+      document.querySelectorAll('.card').forEach(el => el.classList.remove('dark-mode'));
+
+      document.querySelectorAll('.card-header').forEach(el => el.classList.remove('dark-mode'));
+
+      document.querySelectorAll('.table').forEach(el => el.classList.remove('dark-mode'));
+
+      document.querySelectorAll('.alert').forEach(el => el.classList.remove('dark-mode'));
+
+      document.querySelectorAll('.dropdown-menu').forEach(el => el.classList.remove('dark-mode'));
+
+      localStorage.setItem('darkMode', 'disabled');
+
+      updateToggleIcon();
+
+    }
+
+  </script>
+
+</body>
+
+</html>
