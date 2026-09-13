@@ -1,0 +1,186 @@
+{% extends 'teacher/base_teacher.html' %}
+{% block title %}Add New Assignment{% endblock %}
+
+{% block content %}
+<div class="container mt-3">
+  <div class="card shadow-sm border-0">
+    <div class="card-header text-white rounded-top-3" style="background: linear-gradient(90deg,#2b2d42,#3a3d63);">
+      <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i> Add New Assignment</h5>
+    </div>
+    <div class="card-body">
+      <form id="wizardForm" method="POST" enctype="multipart/form-data" novalidate>
+        {{ form.hidden_tag() }}
+
+        <input type="hidden" id="course_id" name="course_id" value="{{ form.course_id.data or '' }}">
+
+        <!-- Step 1: Programme, Level & Course -->
+        <div class="step">
+          <h5 class="fw-bold mb-2">Programme & Course</h5>
+          <div class="row">
+            <div class="mb-3 col-md-4">
+              {{ form.programme.label(class="form-label fw-semibold") }}
+              {{ form.programme(class="form-select") }}
+            </div>
+            <div class="mb-3 col-md-4">
+              {{ form.programme_level.label(class="form-label fw-semibold") }}
+              {{ form.programme_level(class="form-select") }}
+            </div>
+            <div class="mb-3 col-md-4">
+              {{ form.course_name.label(class="form-label fw-semibold") }}
+              {{ form.course_name(class="form-select") }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Title -->
+        <div class="step" style="display:none;">
+          {{ form.title.label(class="form-label fw-semibold") }}
+          {{ form.title(class="form-control", placeholder="Enter assignment title") }}
+        </div>
+
+        <!-- Step 3: Description -->
+        <div class="step" style="display:none;">
+          {{ form.description.label(class="form-label fw-semibold") }}
+          {{ form.description(class="form-control", rows=3, placeholder="Brief overview of the assignment") }}
+        </div>
+
+        <!-- Step 4: Instructions -->
+        <div class="step" style="display:none;">
+          {{ form.instructions.label(class="form-label fw-semibold") }}
+          {{ form.instructions(class="form-control", rows=3, placeholder="Detailed instructions for students") }}
+        </div>
+
+        <!-- Step 5: Due Date & Max Score -->
+        <div class="step" style="display:none;">
+          <div class="row">
+            <div class="col-md-6 mb-2">
+              {{ form.due_date.label(class="form-label fw-semibold") }}
+              {{ form.due_date(class="form-control", type="datetime-local") }}
+            </div>
+            <div class="col-md-6 mb-2">
+              {{ form.max_score.label(class="form-label fw-semibold") }}
+              {{ form.max_score(class="form-control", type="number", step="0.5", min="0") }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 6: File Upload -->
+        <div class="step" style="display:none;">
+          {{ form.file.label(class="form-label fw-semibold") }}
+          {{ form.file(class="form-control") }}
+        </div>
+
+        <!-- Navigation -->
+        <div class="d-flex justify-content-between mt-3">
+          <button type="button" class="btn btn-outline-secondary" id="prevBtn">Back</button>
+          <button type="button" class="btn btn-primary" id="nextBtn">Next</button>
+          <button type="submit" class="btn btn-success" id="submitBtn" style="display:none;">Save Assignment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = document.querySelectorAll(".step");
+let currentStep = 0;
+
+function showStep(n) {
+  steps.forEach((step, i) => step.style.display = i === n ? "block" : "none");
+  document.getElementById("prevBtn").style.display = n === 0 ? "none" : "inline-block";
+  document.getElementById("nextBtn").style.display = n === steps.length - 1 ? "none" : "inline-block";
+  document.getElementById("submitBtn").style.display = n === steps.length - 1 ? "inline-block" : "none";
+}
+
+showStep(currentStep);
+
+document.getElementById("prevBtn").onclick = () => { 
+  if (currentStep > 0) showStep(--currentStep); 
+};
+
+document.getElementById("nextBtn").onclick = () => { 
+  if (currentStep < steps.length - 1) showStep(++currentStep); 
+};
+
+// Dynamic Courses based on Programme & Level
+const programmeSelect = document.getElementById('programme');
+const levelSelect = document.getElementById('programme_level');
+const courseSelect = document.getElementById('course_name');
+const courseIdInput = document.getElementById('course_id');
+
+async function updateCourses() {
+  const programme = programmeSelect?.value || '';
+  const level = levelSelect?.value || '';
+
+  console.log('Updating courses for programme:', programme, 'level:', level);
+
+  if (!programme || !level) {
+    courseSelect.innerHTML = '<option value="">Select programme and level first</option>';
+    courseSelect.disabled = true;
+    courseIdInput.value = '';
+    return;
+  }
+
+  courseSelect.disabled = true;
+  courseSelect.innerHTML = '<option value="">Loading...</option>';
+  courseIdInput.value = '';
+
+  try {
+    // ✅ Use query parameters, not URL path
+    const url = `/teacher/courses_for_programme?programme=${encodeURIComponent(programme)}&level=${encodeURIComponent(level)}`;
+    console.log('Fetching from:', url);
+    
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('Response status:', res.status);
+      courseSelect.innerHTML = '<option value="">Error loading courses</option>';
+      courseSelect.disabled = false;
+      return;
+    }
+
+    const courses = await res.json();
+    console.log('Courses received:', courses);
+
+    courseSelect.innerHTML = '';
+    
+    if (!courses || courses.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No courses available for this programme and level';
+      courseSelect.appendChild(opt);
+      courseSelect.disabled = false;
+      return;
+    }
+
+    courses.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.name;
+      opt.dataset.id = c.id;
+      opt.textContent = `${c.code} – ${c.name}`;
+      courseSelect.appendChild(opt);
+    });
+
+    // Set first course as selected
+    if (courseSelect.options.length > 0) {
+      courseSelect.selectedIndex = 0;
+      courseIdInput.value = courseSelect.options[0].dataset.id || '';
+    }
+    
+    courseSelect.disabled = false;
+  } catch (err) {
+    console.error('Error fetching courses:', err);
+    courseSelect.innerHTML = '<option value="">Error loading courses</option>';
+    courseSelect.disabled = false;
+  }
+}
+
+if (programmeSelect) programmeSelect.addEventListener('change', updateCourses);
+if (levelSelect) levelSelect.addEventListener('change', updateCourses);
+
+if (courseSelect) {
+  courseSelect.addEventListener('change', () => {
+    const selected = courseSelect.options[courseSelect.selectedIndex];
+    courseIdInput.value = selected?.dataset?.id || '';
+  });
+}
+</script>{% endblock %}

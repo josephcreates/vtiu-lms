@@ -1,0 +1,339 @@
+{% extends 'teacher/base_teacher.html' %}
+{% block title %}Edit Quiz | Teacher Panel{% endblock %}
+
+{% block content %}
+<div class="container">
+	<h2 class="mb-4">Edit Quiz</h2>
+
+	<div class="card mb-4">
+		<div class="card-header bg-primary text-white">Quiz Information</div>
+		<div class="card-body">
+			<form method="POST" enctype="multipart/form-data">
+				{{ form.hidden_tag() }}
+
+				<!-- COURSE SELECTION -->
+				<div class="mb-3">
+					{{ form.course_name.label(class="form-label") }}
+					<select name="course_name" id="course_name" class="form-select">
+						<option value="{{ quiz.course_name }}" data-id="{{ selected_course_id }}" selected>
+							{{ quiz.course_name }}
+						</option>
+					</select>
+					<input type="hidden" name="course_id" id="course_id" value="{{ selected_course_id }}">
+				</div>
+
+				<!-- TITLE -->
+				<div class="mb-3">
+					{{ form.title.label(class="form-label") }}
+					{{ form.title(class="form-control") }}
+				</div>
+
+				<!-- PROGRAMME & LEVEL (HIDDEN FORM FIELDS) -->
+				{{ form.assigned_programme(class="form-select", style="display: none;") }}
+				{{ form.programme_level(class="form-select", style="display: none;") }}
+				
+				<!-- DISPLAY ONLY -->
+				<div class="row">
+					<div class="col-md-6 mb-3">
+						<label class="form-label">Programme</label>
+						<input type="text" class="form-control" value="{{ quiz.programme_name or '-' }}" disabled>
+						<small class="text-muted">From selected course</small>
+					</div>
+					<div class="col-md-6 mb-3">
+						<label class="form-label">Level</label>
+						<input type="text" class="form-control" value="{{ quiz.programme_level or '-' }}" disabled>
+						<small class="text-muted">From selected course</small>
+					</div>
+				</div>
+
+				<!-- START & END TIME -->
+				<div class="row">
+					<div class="col-md-6 mb-3">
+						<label class="form-label" for="start_datetime">Start Date &amp; Time</label>
+						{{ form.start_datetime(class="form-control", id="start_datetime", type="datetime-local") }}
+					</div>
+					<div class="col-md-6 mb-3">
+						<label class="form-label" for="end_datetime">End Date &amp; Time</label>
+						{{ form.end_datetime(class="form-control", id="end_datetime", type="datetime-local") }}
+					</div>
+				</div>
+
+				<!-- DURATION & ATTEMPTS -->
+				<div class="row">
+					<div class="col-md-6 mb-3">
+						{{ form.duration.label(class="form-label") }}
+						{{ form.duration(class="form-select") }}
+					</div>
+					<div class="col-md-6 mb-3">
+						{{ form.attempts_allowed.label(class="form-label") }}
+						{{ form.attempts_allowed(class="form-control", min="1", type="number") }}
+					</div>
+				</div>
+
+				<!-- UPLOAD FILE -->
+				<div class="mb-3">
+					<label for="content_file" class="form-label">Upload File (Optional)</label>
+					<input type="file" class="form-control" name="content_file" id="content_file" accept=".pdf,.doc,.docx,.txt">
+					<small class="text-muted">Accepted: PDF, DOC, DOCX, TXT</small>
+				</div>
+
+				<!-- QUIZ QUESTIONS -->
+				<div class="card mb-4">
+					<div class="card-header bg-secondary text-white">
+						<h5 class="mb-0">Quiz Questions</h5>
+					</div>
+					<div class="card-body">
+						<div id="questions-container"></div>
+						<button type="button" class="btn btn-outline-primary" onclick="addQuestion()">
+							<i class="fas fa-plus"></i> Add Question
+						</button>
+						<small class="form-text text-muted d-block mt-2">
+							Questions marked as removed will not be modified on save. To permanently delete, use the Manage view.
+						</small>
+					</div>
+				</div>
+
+				<!-- FORM ACTIONS -->
+				<div class="d-flex justify-content-between">
+					{{ form.submit(class="btn btn-success") }}
+					<a href="{{ url_for('teacher.manage_quizzes') }}" class="btn btn-secondary">Cancel</a>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<!-- Server payload -->
+<script id="quiz-questions-data" type="application/json">
+	{{ quiz_questions | default([], true) | tojson }}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+	// ---- Course sync helpers ----
+	function syncCourseId() {
+		const select = document.getElementById('course_name');
+		const hidden = document.getElementById('course_id');
+		if (!select || !hidden) return;
+		const opt = select.options[select.selectedIndex];
+		hidden.value = opt?.dataset?.id || '';
+	}
+
+	const courseSelect = document.getElementById('course_name');
+	const courseIdInput = document.getElementById('course_id');
+
+	if (courseSelect) {
+		syncCourseId();
+		courseSelect.addEventListener('change', syncCourseId);
+	}
+
+	// ---- Quiz questions rendering logic ----
+	const quizQuestionsEl = document.getElementById('quiz-questions-data');
+	const quizQuestions = (quizQuestionsEl && quizQuestionsEl.textContent)
+		? JSON.parse(quizQuestionsEl.textContent)
+		: [];
+
+	let questionCount = quizQuestions.length || 0;
+	const optionCounters = {};
+	const labelStyles = {
+		abc: ['a', 'b', 'c', 'd', 'e', 'f'],
+		roman: ['i', 'ii', 'iii', 'iv', 'v', 'vi']
+	};
+
+	function addQuestionFromData(data, qIndex) {
+		const container = document.getElementById('questions-container');
+		if (!container) return;
+		const labelStyle = data.label_style || 'abc';
+		const qId = data.id ? data.id : '';
+
+		const cardHtml = `
+			<div class="card mb-3 shadow-sm border border-info" id="question-${qIndex}" data-qindex="${qIndex}">
+				<div class="card-body">
+					<div class="d-flex justify-content-between align-items-center mb-2">
+						<h6 class="mb-0">Question ${qIndex + 1}</h6>
+						<button type="button" class="btn btn-sm btn-outline-danger" onclick="softRemoveQuestion(${qIndex})">
+							<i class="fas fa-trash"></i> Remove
+						</button>
+					</div>
+
+					<input type="hidden" name="questions[${qIndex}][id]" value="${qId}" data-qid="${qId}">
+
+					<div class="mb-3">
+						<label class="form-label" for="question-text-${qIndex}">Question Text</label>
+						<textarea
+							id="question-text-${qIndex}"
+							name="questions[${qIndex}][text]"
+							class="form-control question-text"
+							rows="3"
+							required
+						>${(data.text || '').replace(/<\/?script>/g, '')}</textarea>
+						<small class="text-muted">Use underscores (___) for fill-in-the-blank questions</small>
+					</div>
+
+					<div class="mb-3">
+						<label class="form-label" for="label-style-${qIndex}">Option Label Style</label>
+						<select
+							id="label-style-${qIndex}"
+							class="form-select option-style-select"
+							name="questions[${qIndex}][label_style]"
+							onchange="updateOptionLabels(${qIndex})"
+						>
+							<option value="abc" ${labelStyle === 'abc' ? 'selected' : ''}>a, b, c, d, e, f</option>
+							<option value="roman" ${labelStyle === 'roman' ? 'selected' : ''}>i, ii, iii, iv, v, vi</option>
+						</select>
+					</div>
+
+					<div class="option-container" id="options-${qIndex}"></div>
+
+					<div class="mt-2">
+						<button type="button" class="btn btn-sm btn-outline-secondary" onclick="addOption(${qIndex})">
+							<i class="fas fa-plus"></i> Add Option
+						</button>
+						<button type="button" class="btn btn-sm btn-outline-danger ms-1" onclick="softRemoveLastOption(${qIndex})">
+							<i class="fas fa-minus"></i> Remove Last Option
+						</button>
+					</div>
+
+					<div class="mt-3 p-2 bg-light rounded d-none" id="question-removed-note-${qIndex}">
+						<small class="text-warning">
+							<i class="fas fa-info-circle"></i> This question is marked as removed and will not be modified on save.
+						</small>
+					</div>
+
+					<input type="hidden" name="questions[${qIndex}][_removed]" id="questions-${qIndex}-removed" value="0">
+				</div>
+			</div>
+		`;
+
+		container.insertAdjacentHTML('beforeend', cardHtml);
+		optionCounters[qIndex] = 0;
+
+		// Render existing options
+		if (Array.isArray(data.options)) {
+			data.options.forEach((opt) => {
+				addOption(qIndex, opt.text || '', !!opt.is_correct, opt.id || '');
+			});
+		} else {
+			// Default options for new questions
+			addOption(qIndex);
+			addOption(qIndex);
+		}
+	}
+
+	window.addOption = function addOption(qIndex, optText = '', isCorrect = false, optId = '') {
+		const currentCount = optionCounters[qIndex] ?? 0;
+		const oIndex = currentCount;
+		optionCounters[qIndex] = currentCount + 1;
+
+		const styleSelect = document.getElementById(`label-style-${qIndex}`);
+		const style = styleSelect ? styleSelect.value : 'abc';
+		const label = labelStyles[style][oIndex] || `opt${oIndex + 1}`;
+		const checked = isCorrect ? 'checked' : '';
+
+		const safeText = String(optText || '').replace(/"/g, '&quot;').replace(/<\/?script>/g, '');
+
+		const optionHtml = `
+			<div class="input-group mb-2 question-option" id="question-${qIndex}-option-${oIndex}" data-oindex="${oIndex}">
+				<span class="input-group-text option-label fw-bold">${label}</span>
+				<input type="text" class="form-control option-text" name="questions[${qIndex}][options][${oIndex}][text]" value="${safeText}" placeholder="Option text" required />
+				<input type="hidden" name="questions[${qIndex}][options][${oIndex}][id]" value="${optId}">
+				<span class="input-group-text">
+					<input class="form-check-input mt-0" type="checkbox" name="questions[${qIndex}][options][${oIndex}][is_correct]" ${checked} title="Mark as correct answer" />
+					<span class="ms-2 small">Correct</span>
+				</span>
+				<input type="hidden" name="questions[${qIndex}][options][${oIndex}][_removed]" id="questions-${qIndex}-option-${oIndex}-removed" value="0">
+			</div>
+		`;
+
+		const optionsContainer = document.getElementById(`options-${qIndex}`);
+		if (optionsContainer) optionsContainer.insertAdjacentHTML('beforeend', optionHtml);
+	};
+
+	window.softRemoveQuestion = function softRemoveQuestion(qIndex) {
+		const card = document.getElementById(`question-${qIndex}`);
+		if (!card) return;
+		card.style.opacity = '0.5';
+		card.style.transition = 'opacity .2s ease';
+		card.querySelectorAll('.question-text, .option-text, .option-style-select, input[type="checkbox"]').forEach(el => {
+			if (el.classList && el.classList.contains('question-text')) {
+				el.dataset._orig = el.value;
+				el.value = '';
+			} else if (el.classList && el.classList.contains('option-text')) {
+				el.dataset._orig = el.value;
+				el.value = '';
+			} else {
+				try { el.disabled = true; } catch (e) {}
+			}
+		});
+		const removedInput = document.getElementById(`questions-${qIndex}-removed`);
+		if (removedInput) removedInput.value = '1';
+		const note = document.getElementById(`question-removed-note-${qIndex}`);
+		if (note) note.classList.remove('d-none');
+	};
+
+	window.softRemoveLastOption = function softRemoveLastOption(qIndex) {
+		const count = optionCounters[qIndex] ?? 0;
+		if (count <= 0) return;
+		const oIndex = count - 1;
+		const optDiv = document.getElementById(`question-${qIndex}-option-${oIndex}`);
+		if (!optDiv) return;
+
+		const removedHidden = document.getElementById(`questions-${qIndex}-option-${oIndex}-removed`);
+		if (removedHidden) removedHidden.value = '1';
+
+		optDiv.style.display = 'none';
+		const text = optDiv.querySelector('.option-text');
+		if (text) {
+			text.dataset._orig = text.value;
+			text.value = '';
+		}
+		optionCounters[qIndex] = oIndex;
+	};
+
+	window.updateOptionLabels = function updateOptionLabels(qIndex) {
+		const styleSelect = document.getElementById(`label-style-${qIndex}`);
+		const style = styleSelect ? styleSelect.value : 'abc';
+		const container = document.getElementById(`options-${qIndex}`);
+		if (!container) return;
+		const optionGroups = container.querySelectorAll('.input-group');
+		optionGroups.forEach((group, idx) => {
+			const labelSpan = group.querySelector('.input-group-text.option-label');
+			if (labelSpan) labelSpan.textContent = labelStyles[style][idx] || `opt${idx + 1}`;
+		});
+	};
+
+	window.addQuestion = function addQuestion() {
+		const newQ = { text: '', label_style: 'abc', options: [] };
+		addQuestionFromData(newQ, questionCount);
+		const newCard = document.getElementById(`question-${questionCount}`);
+		if (newCard) newCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		questionCount++;
+	};
+
+	// Render existing questions
+	if (quizQuestions && quizQuestions.length) {
+		quizQuestions.forEach((q, i) => {
+			addQuestionFromData(q, i);
+		});
+	} else {
+		if (questionCount === 0) addQuestion();
+	}
+});
+</script>
+
+<style>
+	.question-option {
+		background-color: #f8f9fa;
+		border-radius: 0.25rem;
+	}
+	.option-label {
+		min-width: 40px;
+		text-align: center;
+	}
+	.form-check-input {
+		width: 1.25em;
+		height: 1.25em;
+	}
+</style>
+
+{% endblock %}

@@ -1,0 +1,205 @@
+{% extends "teacher/base_teacher.html" %}
+{% block title %}Communication{% endblock %}
+
+{% block content %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
+<div class="container-fluid py-4">
+  <div class="row g-4">
+    <!-- Sidebar: Broadcast only -->
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
+        <div class="card-header bg-gradient-primary text-white py-3 text-center fw-bold">
+          <i class="fas fa-bullhorn me-2"></i> Broadcast
+        </div>
+
+        <!-- Broadcast Section -->
+        <div class="border-top mt-2 p-3">
+          <label for="classSelect" class="form-label fw-semibold small text-uppercase text-muted">
+            Select Classes for Broadcast
+          </label>
+          <div class="form-group">
+            <select id="classSelect" 
+                    class="form-select rounded-3 shadow-sm" 
+                    multiple 
+                    size="6" 
+                    style="min-height: 150px; height: 180px; overflow-y: auto;">
+            </select>
+            <small class="text-muted d-block mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple classes</small>
+
+            <div class="mt-3 d-grid">
+              <button class="btn btn-sm btn-primary rounded-pill shadow-sm" id="broadcastBtn">
+                <i class="fas fa-broadcast-tower me-1"></i> Broadcast to Selected Classes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="col-md-9">
+      <div class="chat-card shadow-sm rounded-4 d-flex flex-column overflow-hidden">
+        <!-- Header -->
+        <div class="chat-header bg-primary text-white px-3 py-2 d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <div id="chatAvatar" class="conv-avatar bg-light text-primary">BC</div>
+            <div>
+              <div id="chatWith" class="fw-bold">Broadcast to selected classes</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Body -->
+        <div id="chatBox" class="chat-body flex-grow-1 px-3 py-2 bg-light overflow-auto"></div>
+
+        <!-- Chat Input -->
+        <div class="chat-input border-top bg-white d-flex gap-2 align-items-center p-2">
+          <input type="text" id="messageInput" class="form-control rounded-pill" placeholder="Type a message...">
+          <button class="btn btn-primary rounded-circle" id="sendBtn" title="Send">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Chat styling */
+:root {
+  --bubble-self: #dcf8c6;
+  --bubble-other: #ffffff;
+  --muted: #7a7a7a;
+  --bg-gradient: linear-gradient(45deg, #007bff, #0056d2);
+}
+.chat-card { height: 500px; background: #fff; border-radius: 15px; }
+.chat-header { border-bottom: 1px solid rgba(255, 255, 255, 0.2); }
+.conv-avatar { width: 40px; height: 40px; border-radius: 50%; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.chat-body { background: #eaeff3; display: flex; flex-direction: column; gap: 10px; padding: 15px; }
+.bubble { display: inline-block; padding: 10px 14px; border-radius: 18px; font-size: 0.9rem; line-height: 1.4; max-width: 70%; word-wrap: break-word; box-shadow: 0 2px 3px rgba(0, 0, 0, .05); }
+.bubble.self { align-self: flex-end; background: var(--bubble-self); border-radius: 18px 18px 0 18px; }
+.bubble.other { align-self: flex-start; background: var(--bubble-other); border-radius: 18px 18px 18px 0; }
+.meta-line { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+.day-sep { text-align: center; font-size: 0.75rem; color: #666; margin: 10px 0; }
+.chat-input input { border-radius: 20px; padding: 8px 12px; }
+.chat-input button { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.tick-single, .tick-double, .tick-read { margin-left: 4px; transition: color 0.6s ease-in-out; }
+.tick-single, .tick-double { color: gray; }
+.tick-read { color: #007bff; }
+.animate-read { animation: fadeToBlue 0.6s forwards ease-in-out; }
+@keyframes fadeToBlue { from { color: gray; } to { color: #007bff; } }
+</style>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const socket = io();
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+const currentUserId = "{{ current_user.admin_id if current_user.__class__.__name__ == 'Admin' else current_user.user_id }}";
+const currentUserRole = "{{ 'admin' if current_user.__class__.__name__ == 'Admin' else current_user.role }}";
+
+let broadcastMode = true;
+
+// Join room
+socket.emit('join', { user_id: currentUserId });
+
+// Load classes
+fetch('/chat/teacher/classes')
+  .then(res => res.json())
+  .then(data => {
+    const select = document.getElementById('classSelect');
+    select.innerHTML = '';
+    data.forEach(c => {
+      const option = document.createElement('option');
+      option.value = c.id;
+      option.textContent = c.name;
+      select.appendChild(option);
+    });
+  });
+
+// Broadcast button
+document.getElementById('broadcastBtn').addEventListener('click', () => {
+  broadcastMode = true;
+  document.getElementById('chatWith').innerText = 'Broadcast to selected classes';
+  document.getElementById('chatAvatar').textContent = 'BC';
+  loadMessages();
+});
+
+// Load messages
+let lastMessageDate = null;
+function loadMessages() {
+  const url = '/chat/messages/all';
+  lastMessageDate = null;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      const box = document.getElementById('chatBox');
+      box.innerHTML = '';
+      data.forEach(renderMessage);
+    });
+}
+
+// Render message
+function renderMessage(m) {
+  const box = document.getElementById('chatBox');
+  const isSelf = String(m.sender_id) === String(currentUserId);
+  const msgDate = new Date(m.timestamp).toDateString();
+
+  if (lastMessageDate !== msgDate) {
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'day-sep';
+    dayDiv.textContent = msgDate;
+    box.appendChild(dayDiv);
+    lastMessageDate = msgDate;
+  }
+
+  let tickIcon = '';
+  if (isSelf) {
+    if (m.read) tickIcon = '<i class="fas fa-check-double tick-read animate-read"></i>';
+    else if (m.delivered) tickIcon = '<i class="fas fa-check-double tick-double"></i>';
+    else tickIcon = '<i class="fas fa-check tick-single"></i>';
+  }
+
+  const div = document.createElement('div');
+  div.className = 'bubble ' + (isSelf ? 'self' : 'other');
+  div.dataset.id = m.id || Date.now();
+  const timeStr = new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  div.innerHTML = `<div>${m.message}</div>
+                   <span class="meta-line">${timeStr}${m.edited ? ' <span class="edited-tag">(edited)</span>' : ''} ${tickIcon}</span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// Send message
+function sendMessage() {
+  const input = document.getElementById('messageInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const selectedClasses = Array.from(document.getElementById('classSelect').selectedOptions).map(o => o.value);
+  if (selectedClasses.length === 0) {
+    alert('Select at least one class for broadcast.');
+    return;
+  }
+
+  socket.emit('broadcast_message', {
+    sender_id: currentUserId,
+    sender_role: currentUserRole,
+    class_ids: selectedClasses,
+    message: text
+  });
+
+  input.value = '';
+  document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+}
+
+// Send on click or Enter
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+document.getElementById('messageInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+</script>
+{% endblock %}
