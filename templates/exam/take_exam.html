@@ -1,0 +1,1124 @@
+{% extends 'exam/base_exam.html' %}
+{% block title %}Take Exam – {{ exam_json.title }}{% endblock %}
+
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Poppins:wght@500;600&display=swap');
+
+  :root {
+    --primary: #4e73df;
+    --success: #1cc88a;
+    --danger: #e74c3c;
+    --warning: #f39c12;
+    --info: #3498db;
+    --dark: #2c3e50;
+    --light: #f8f9fa;
+    --border: #e9ecef;
+    --text-primary: #2c3e50;
+    --text-muted: #7f8c8d;
+  }
+
+  * {
+    font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+  }
+
+  /* ===== HEADER ===== */
+  .exam-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
+    color: white;
+    padding: 1.5rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    box-shadow: 0 4px 20px rgba(78, 115, 223, 0.15);
+  }
+
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .header-left h4 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+  }
+
+  .timer-display {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+  }
+
+  .timer-display small {
+    opacity: 0.9;
+    font-size: 0.85rem;
+  }
+
+  #timer {
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+  }
+
+  .timer-display.critical #timer {
+    animation: pulse-timer 1s infinite;
+    color: #ffcccb;
+  }
+
+  @keyframes pulse-timer {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* ===== MAIN CONTAINER ===== */
+  .exam-container {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 2rem;
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ===== QUESTIONS SECTION ===== */
+  .questions-section {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  }
+
+  .question-block {
+    margin-bottom: 2.5rem;
+    padding: 1.5rem;
+    background: #fafbfc;
+    border-left: 4px solid var(--primary);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    animation: slideInUp 0.4s ease forwards;
+  }
+
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .question-block:hover {
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(78, 115, 223, 0.1);
+    border-left-width: 6px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    gap: 1rem;
+  }
+
+  .question-number {
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 0.95rem;
+  }
+
+  .flag-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .flag-btn:hover {
+    border-color: var(--warning);
+    color: var(--warning);
+  }
+
+  .flag-btn.flagged {
+    background: var(--warning);
+    color: white;
+    border-color: var(--warning);
+  }
+
+  .question-text {
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 1.25rem;
+    line-height: 1.6;
+  }
+
+  .options-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .form-check {
+    position: relative;
+    padding-left: 0;
+  }
+
+  .form-check-input {
+    display: none;
+  }
+
+  .form-check-label {
+    display: block;
+    padding: 0.75rem 1rem;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 0;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .form-check-label:hover {
+    border-color: var(--primary);
+    background: #f0f4ff;
+  }
+
+  .form-check-input:checked + .form-check-label {
+    background: linear-gradient(135deg, #e8f0ff 0%, #f0e8ff 100%);
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .exam-sidebar {
+    position: sticky;
+    top: 100px;
+    height: fit-content;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .sidebar-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  }
+
+  .sidebar-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+
+  .progress-container {
+    margin-bottom: 1.5rem;
+  }
+
+  .progress-bar-custom {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%);
+    transition: width 0.3s ease;
+    border-radius: 4px;
+  }
+
+  .progress-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    font-size: 0.85rem;
+  }
+
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .stat-label {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .stat-value {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  /* ===== PALETTE ===== */
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .palette-btn {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    color: var(--text-primary);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+    position: relative;
+  }
+
+  .palette-btn:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+  }
+
+  .palette-btn.unanswered {
+    background: #f0f0f0;
+    color: var(--text-muted);
+  }
+
+  .palette-btn.answered {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+  }
+
+  .palette-btn.current {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(78, 115, 223, 0.2);
+  }
+
+  .palette-btn.flagged {
+    background: var(--warning);
+    color: white;
+    border-color: var(--warning);
+  }
+
+  .palette-btn.flagged.current {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--warning) 100%);
+  }
+
+  .palette-legend {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+  }
+
+  /* ===== PAGINATION ===== */
+  .pagination-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .pagination-info {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .pagination-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .nav-btn {
+    padding: 0.75rem 1.5rem;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    color: var(--primary);
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    transform: translateY(-2px);
+  }
+
+  .nav-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* ===== SUBMIT SECTION ===== */
+  .submit-section {
+    display: none;
+    margin-top: 2rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, #e8f5e9 0%, #e0f2f1 100%);
+    border-radius: 16px;
+    text-align: right;
+    border-left: 4px solid var(--success);
+  }
+
+  .submit-section.show {
+    display: block;
+    animation: slideInUp 0.4s ease;
+  }
+
+  .submit-btn {
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, var(--success) 0%, #16a085 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(28, 200, 138, 0.3);
+  }
+
+  .submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(28, 200, 138, 0.4);
+  }
+
+  .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1024px) {
+    .exam-container {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .exam-sidebar {
+      position: relative;
+      top: 0;
+    }
+
+    .header-right {
+      gap: 1rem;
+    }
+
+    .timer-display {
+      padding: 0.5rem 1rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .exam-header {
+      padding: 1rem 0;
+    }
+
+    .header-content {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .header-left h4 {
+      font-size: 1.1rem;
+    }
+
+    .exam-container {
+      padding: 1rem;
+      gap: 1rem;
+    }
+
+    .questions-section {
+      padding: 1.25rem;
+    }
+
+    .palette-grid {
+      grid-template-columns: repeat(5, 1fr);
+    }
+
+    .sidebar-card {
+      padding: 1rem;
+    }
+
+    .pagination-nav {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .pagination-buttons {
+      width: 100%;
+    }
+
+    .nav-btn {
+      flex: 1;
+    }
+  }
+
+  /* ===== SCROLL STYLING ===== */
+  .palette-grid::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .palette-grid::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .palette-grid::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+  }
+
+  .palette-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+</style>
+
+<!-- Sticky Header -->
+<div class="exam-header">
+  <div class="container-fluid px-3 px-md-4">
+    <div class="header-content">
+      <div class="header-left">
+        <h4 id="exam-title">{{ exam_json.title }}</h4>
+      </div>
+      <div class="header-right">
+        <div class="timer-display" id="timerDisplay">
+          <small><i class="fas fa-hourglass-end"></i> Time Left</small>
+          <div id="timer" class="ms-2">--:--</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Exam Container -->
+<form id="exam-form" 
+      method="POST" 
+      action="{{ url_for('exam.submit_exam', exam_id=exam_json.id, attempt_id=attempt.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="exam-container">
+    <!-- Questions Column -->
+    <div>
+      <div class="questions-section" id="questions-container"></div>
+
+      <!-- Pagination Navigation -->
+      <div class="pagination-nav">
+        <div class="pagination-info">
+          <span id="page-info">Page 1</span>
+        </div>
+        <div class="pagination-buttons">
+          <button type="button" class="nav-btn" id="prevBtn">← Previous</button>
+          <button type="button" class="nav-btn" id="nextBtn">Next →</button>
+        </div>
+      </div>
+
+      <!-- Submit Section -->
+      <div class="submit-section" id="submit-container">
+        <button type="submit" class="submit-btn">
+          <i class="fas fa-paper-plane"></i> Submit Exam
+        </button>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="exam-sidebar">
+      <!-- Progress Card -->
+      <div class="sidebar-card">
+        <div class="sidebar-title"><i class="fas fa-chart-pie"></i> Progress</div>
+        
+        <div class="progress-container">
+          <div class="progress-bar-custom">
+            <div class="progress-fill" id="exam-progress" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="progress-stats">
+          <div class="stat-item">
+            <span class="stat-label">Total</span>
+            <span class="stat-value" id="pal-total">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Answered</span>
+            <span class="stat-value" id="pal-answered">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Question Palette Card -->
+      <div class="sidebar-card">
+        <div class="sidebar-title"><i class="fas fa-th"></i> Question Palette</div>
+        
+        <div class="palette-grid" id="question-palette"></div>
+
+        <div class="palette-legend" id="palette-legend">
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #f0f0f0; border: 1px solid #ccc;"></div>
+            <span>Unanswered</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: var(--success);"></div>
+            <span>Answered</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: var(--primary); box-shadow: 0 0 0 2px rgba(78, 115, 223, 0.3);"></div>
+            <span>Current</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: var(--warning);"></div>
+            <span>Flagged</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exam Info Card -->
+      <div class="sidebar-card">
+        <div class="sidebar-title"><i class="fas fa-info-circle"></i> Exam Info</div>
+        <div class="progress-stats">
+          <div class="stat-item">
+            <span class="stat-label">Duration</span>
+            <span class="stat-value">{{ exam_json.duration_minutes }}m</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Questions</span>
+            <span class="stat-value" id="info-total">{{ exam_json.questions|length }}</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</form>
+
+<!-- Embedded Data -->
+<script id="exam-data" type="application/json">
+{{ exam_json | tojson }}
+</script>
+
+<script type="application/json" id="attempt-data">
+{
+  "attempt_id": {{ attempt.id }},
+  "attempt_start": "{{ attempt.start_time.isoformat() if attempt.start_time else '' }}",
+  "attempt_submitted": {{ 'true' if attempt.submitted else 'false' }}
+}
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Parse embedded data
+  const exam = JSON.parse(document.getElementById("exam-data").textContent);
+  const attemptObj = JSON.parse(document.getElementById("attempt-data").textContent);
+  const attemptId = attemptObj.attempt_id;
+  const attemptStartIso = attemptObj.attempt_start || null;
+  const attemptSubmitted = attemptObj.attempt_submitted === 'true';
+
+  // Config
+  const examId = exam.id;
+  const duration = Number(exam.duration_minutes) * 60;
+  const perPage = 5;
+  const totalQs = exam.questions.length;
+  const totalPages = Math.max(1, Math.ceil(totalQs / perPage));
+
+  // Storage key helper
+  const storageKey = () => `exam_${examId}_attempt_${attemptId}_answers`;
+
+  // DOM references
+  const timerEl = document.getElementById("timer");
+  const timerDisplay = document.getElementById("timerDisplay");
+  const questionsContainer = document.getElementById("questions-container");
+  const submitContainer = document.getElementById("submit-container");
+  const form = document.getElementById("exam-form");
+  const paletteContainer = document.getElementById("question-palette");
+  const palTotalEl = document.getElementById("pal-total");
+  const palAnsweredEl = document.getElementById("pal-answered");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const pageInfo = document.getElementById("page-info");
+
+  const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
+  const csrfToken = csrfTokenEl ? csrfTokenEl.value : null;
+  window.csrfToken = csrfToken;
+
+  // State
+  let currentPage = 1;
+  let answers = {};
+  let countdownTimerId = null;
+  let autoSubmitting = false;
+  let flagged = {};
+  let startTime = null;
+
+  if (attemptStartIso) {
+    const parsed = new Date(attemptStartIso);
+    if (!isNaN(parsed.getTime())) startTime = parsed;
+  }
+
+  if (attemptSubmitted) {
+    alert("This attempt has already been submitted. Redirecting to exams.");
+    window.location.href = "{{ url_for('exam.exams') }}";
+    return;
+  }
+
+  // Storage helpers
+  function saveAnswersToStorage() {
+    try {
+      localStorage.setItem(storageKey(), JSON.stringify(answers));
+    } catch (e) {
+      console.warn("Could not save answers:", e);
+    }
+  }
+
+  function loadAnswersFromStorage() {
+    try {
+      const raw = localStorage.getItem(storageKey());
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        answers = Object.assign({}, parsed);
+      }
+    } catch (e) {
+      console.warn("Could not load answers:", e);
+    }
+  }
+
+  function clearAnswersFromStorage() {
+    try {
+      localStorage.removeItem(storageKey());
+    } catch (e) {
+      console.warn("Could not clear answers:", e);
+    }
+  }
+
+  function saveFlagsToStorage() {
+    try {
+      localStorage.setItem(`flags_${examId}_${attemptId}`, JSON.stringify(flagged));
+    } catch (e) {
+      console.warn("Could not save flags:", e);
+    }
+  }
+
+  function loadFlagsFromStorage() {
+    try {
+      const raw = localStorage.getItem(`flags_${examId}_${attemptId}`);
+      if (!raw) return;
+      flagged = JSON.parse(raw) || {};
+    } catch (e) {
+      console.warn("Could not load flags:", e);
+    }
+  }
+
+  function clearFlagsFromStorage() {
+    try {
+      localStorage.removeItem(`flags_${examId}_${attemptId}`);
+    } catch (e) { }
+  }
+
+  // Initialize
+  loadAnswersFromStorage();
+  loadFlagsFromStorage();
+  renderPalette();
+  renderQuestions(currentPage);
+  updateSubmitVisibility();
+  updatePaletteCounts();
+
+  if (startTime) startCountdown();
+  else timerEl.textContent = formatTime(duration);
+
+  // Event listeners
+  prevBtn.addEventListener("click", () => {
+    if (currentPage > 1) renderQuestions(currentPage - 1);
+  });
+
+  nextBtn.addEventListener("click", () => {
+    if (currentPage < totalPages) renderQuestions(currentPage + 1);
+  });
+
+  // Rendering functions
+  function renderQuestions(page) {
+    currentPage = page;
+    questionsContainer.innerHTML = "";
+
+    const start = (page - 1) * perPage;
+    const end = Math.min(start + perPage, exam.questions.length);
+
+    for (let i = start; i < end; i++) {
+      const q = exam.questions[i];
+      const block = document.createElement("div");
+      block.className = "question-block";
+      block.id = `q-block-${i}`;
+      block.dataset.idx = i;
+      block.dataset.qid = q.id;
+
+      const header = document.createElement("div");
+      header.className = "question-header";
+
+      const num = document.createElement("div");
+      num.className = "question-number";
+      num.innerHTML = `Question ${i + 1} of ${totalQs}`;
+
+      const flagBtn = document.createElement("button");
+      flagBtn.type = "button";
+      flagBtn.className = "flag-btn";
+      flagBtn.innerHTML = flagged[q.id] ? '<i class="fas fa-flag"></i> Flagged' : '<i class="fas fa-flag"></i> Flag';
+      if (flagged[q.id]) flagBtn.classList.add("flagged");
+
+      flagBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        flagged[q.id] = !flagged[q.id];
+        saveFlagsToStorage();
+        flagBtn.innerHTML = flagged[q.id] ? '<i class="fas fa-flag"></i> Flagged' : '<i class="fas fa-flag"></i> Flag';
+        flagBtn.classList.toggle("flagged", flagged[q.id]);
+        updatePaletteForQuestionIndex(i);
+      });
+
+      header.appendChild(num);
+      header.appendChild(flagBtn);
+      block.appendChild(header);
+
+      const questionText = document.createElement("div");
+      questionText.className = "question-text";
+      questionText.innerHTML = q.question_text;
+      block.appendChild(questionText);
+
+      const optionsGroup = document.createElement("div");
+      optionsGroup.className = "options-group";
+
+      q.options.forEach(opt => {
+        const optId = `q${q.id}_o${opt.id}`;
+        const checkWrap = document.createElement("div");
+        checkWrap.className = "form-check";
+
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = `answers[${q.id}]`;
+        radio.id = optId;
+        radio.value = opt.id;
+        radio.className = "form-check-input";
+
+        if (answers[q.id] && String(answers[q.id]) === String(opt.id)) {
+          radio.checked = true;
+        }
+
+        radio.addEventListener("change", () => {
+          answers[q.id] = opt.id;
+          saveAnswersToStorage();
+          autosave(q.id, opt.id);
+          updatePaletteForQuestionIndex(i);
+          updatePaletteCounts();
+          updateSubmitVisibility();
+        });
+
+        const label = document.createElement("label");
+        label.htmlFor = optId;
+        label.className = "form-check-label";
+        label.textContent = opt.text;
+
+        checkWrap.appendChild(radio);
+        checkWrap.appendChild(label);
+        optionsGroup.appendChild(checkWrap);
+      });
+
+      block.appendChild(optionsGroup);
+      questionsContainer.appendChild(block);
+    }
+
+    renderPaginationButtons();
+    highlightCurrentPaletteRange();
+    updatePageInfo();
+  }
+
+  function updatePageInfo() {
+    pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+  }
+
+  function renderPalette() {
+    paletteContainer.innerHTML = "";
+    for (let i = 0; i < totalQs; i++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "palette-btn unanswered";
+      btn.dataset.idx = i;
+      btn.innerText = i + 1;
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const targetIndex = Number(e.currentTarget.dataset.idx);
+        const page = Math.floor(targetIndex / perPage) + 1;
+        renderQuestions(page);
+        setTimeout(() => {
+          scrollToQuestionIndex(targetIndex);
+          updatePaletteForQuestionIndex(targetIndex);
+        }, 80);
+      });
+      paletteContainer.appendChild(btn);
+    }
+    updatePaletteCounts();
+  }
+
+  function updatePaletteCounts() {
+    const answeredCount = Object.keys(answers).length;
+    palTotalEl.textContent = totalQs;
+    palAnsweredEl.textContent = answeredCount;
+
+    const percent = totalQs > 0 ? Math.round((answeredCount / totalQs) * 100) : 0;
+    document.getElementById("exam-progress").style.width = percent + "%";
+
+    for (let i = 0; i < totalQs; i++) {
+      updatePaletteForQuestionIndex(i, true);
+    }
+  }
+
+  function updatePaletteForQuestionIndex(index, noCountsUpdate = false) {
+    const q = exam.questions[index];
+    const btn = paletteContainer.querySelector(`button[data-idx="${index}"]`);
+    if (!btn) return;
+
+    btn.classList.remove("answered", "current", "flagged", "unanswered");
+
+    if (answers[q.id]) {
+      btn.classList.add("answered");
+    } else {
+      btn.classList.add("unanswered");
+    }
+
+    const startIndex = (currentPage - 1) * perPage;
+    const endIndex = Math.min(startIndex + perPage - 1, totalQs - 1);
+    if (index >= startIndex && index <= endIndex) {
+      btn.classList.add("current");
+    }
+
+    if (flagged[q.id]) {
+      btn.classList.add("flagged");
+    }
+
+    if (!noCountsUpdate) updatePaletteCounts();
+  }
+
+  function highlightCurrentPaletteRange() {
+    for (let i = 0; i < totalQs; i++) {
+      updatePaletteForQuestionIndex(i, true);
+    }
+  }
+
+  function scrollToQuestionIndex(index) {
+    const el = document.getElementById(`q-block-${index}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  function renderPaginationButtons() {
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+  }
+
+  function updateSubmitVisibility() {
+    const showSubmit = currentPage === totalPages;
+    submitContainer.classList.toggle("show", showSubmit);
+  }
+
+  // Timer functions
+  function startCountdown() {
+    if (!startTime || isNaN(startTime.getTime())) {
+      console.error("Cannot start countdown: invalid startTime");
+      return;
+    }
+    if (countdownTimerId) clearTimeout(countdownTimerId);
+    tickCountdown();
+  }
+
+  function tickCountdown() {
+    const now = new Date();
+    const elapsed = Math.floor((now - startTime) / 1000);
+    let left = duration - elapsed;
+
+    const examEnd = new Date(exam.end_datetime);
+    const hardClose = Math.floor((examEnd - now) / 1000);
+    if (hardClose < left) left = hardClose;
+
+    if (left <= 0) {
+      timerEl.textContent = "00:00";
+      timerDisplay.classList.add("critical");
+      disableInputs();
+      if (!autoSubmitting) {
+        autoSubmitting = true;
+        clearAnswersFromStorage();
+        injectAnswers();
+        ensureCsrf();
+        setTimeout(() => {
+          try {
+            form.submit();
+          } catch (err) {
+            console.error("Auto-submit failed:", err);
+          }
+        }, 250);
+      }
+      return;
+    }
+
+    timerEl.textContent = formatTime(left);
+    if (left <= 300) {
+      timerDisplay.classList.add("critical");
+    }
+    countdownTimerId = setTimeout(tickCountdown, 1000);
+  }
+
+  function formatTime(sec) {
+    const m = String(Math.floor(sec / 60)).padStart(2, "0");
+    const s = String(sec % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  }
+
+  function disableInputs() {
+    document.querySelectorAll("#questions-container input, #questions-container button").forEach(el => el.disabled = true);
+  }
+
+  function injectAnswers() {
+    document.querySelectorAll('input[data-injected="true"]').forEach(n => n.remove());
+    Object.entries(answers).forEach(([qid, oid]) => {
+      const hidden = document.createElement("input");
+      hidden.type = "hidden";
+      hidden.name = `answers[${qid}]`;
+      hidden.value = oid;
+      hidden.setAttribute("data-injected", "true");
+      form.appendChild(hidden);
+    });
+    Object.entries(flagged).forEach(([qid, isFlagged]) => {
+      if (isFlagged) {
+        const hidden = document.createElement("input");
+        hidden.type = "hidden";
+        hidden.name = `flags[${qid}]`;
+        hidden.value = "1";
+        hidden.setAttribute("data-injected", "true");
+        form.appendChild(hidden);
+      }
+    });
+  }
+
+  function ensureCsrf() {
+    if (!csrfToken) return;
+    let csrf = document.querySelector('input[name="csrf_token"]');
+    if (!csrf) {
+      csrf = document.createElement("input");
+      csrf.type = "hidden";
+      csrf.name = "csrf_token";
+      csrf.value = csrfToken;
+      form.appendChild(csrf);
+    }
+  }
+
+  function autosave(qid, oid) {
+    try {
+      fetch("/student/autosave_exam_answer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken || ""
+        },
+        body: JSON.stringify({
+          exam_id: examId,
+          attempt_id: attemptId,
+          question_id: qid,
+          selected_option_id: oid
+        })
+      }).catch(e => console.warn("Autosave error:", e));
+    } catch (err) {
+      console.error("Autosave exception:", err);
+    }
+  }
+
+  // Form submission
+  let isSubmitting = false;
+  form.addEventListener("submit", function (e) {
+    injectAnswers();
+    ensureCsrf();
+
+    if (Object.keys(answers).length === 0 && !confirm("You have not answered any questions. Submit anyway?")) {
+      e.preventDefault();
+      return false;
+    }
+
+    clearAnswersFromStorage();
+    clearFlagsFromStorage();
+    isSubmitting = true;
+  });
+
+  // Warn on unload
+  window.addEventListener("beforeunload", function (e) {
+    if (!autoSubmitting && !isSubmitting && Object.keys(answers).length > 0) {
+      e.preventDefault();
+      e.returnValue = "You have unsaved answers — leaving will lose progress.";
+      return e.returnValue;
+    }
+  });
+
+  // Expose API
+  window.takeExam = window.takeExam || {};
+  window.takeExam.setAnswers = function (initialAnswers) {
+    answers = Object.assign({}, answers, initialAnswers);
+    saveAnswersToStorage();
+    renderQuestions(currentPage);
+    updatePaletteCounts();
+  };
+});
+</script>
+
+{% endblock %}

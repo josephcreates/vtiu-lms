@@ -1,0 +1,138 @@
+{% extends 'student/base_student.html' %}
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+
+<style>
+  body {
+    background: linear-gradient(135deg, #eef2f7, #f8f9fa);
+  }
+
+  .profile-wrapper {
+    max-width: 1200px;
+    margin: auto;
+  }
+
+  .glass-card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+    border: none;
+  }
+
+  .profile-pic {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 4px solid #4e73df;
+  }
+
+  .name-title {
+    font-weight: 700;
+    color: #2c3e50;
+  }
+
+  .badge-soft {
+    background: #e9f2ff;
+    color: #2c6ef2;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+  }
+
+  .info-item {
+    background: #f8fafc;
+    padding: 12px 15px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+  }
+
+  .info-item strong {
+    display: block;
+    color: #6c757d;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .section-title {
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin-bottom: 15px;
+    color: #34495e;
+  }
+</style>
+
+<div class="profile-wrapper my-4">
+
+  <!-- TOP PROFILE CARD -->
+  <div class="glass-card p-4 mb-4 text-center text-md-start">
+    <div class="row align-items-center">
+      <div class="col-md-3 text-center">
+        {% if user.profile_picture %}
+          <img src="{{ url_for('static', filename='uploads/profile_pictures/' + user.profile_picture) }}" class="profile-pic shadow">
+        {% else %}
+          <img src="{{ url_for('static', filename='img/default_profile.png') }}" class="profile-pic shadow">
+        {% endif %}
+      </div>
+
+      <div class="col-md-9 mt-3 mt-md-0">
+        <h3 class="name-title mb-1">{{ user.full_name }}</h3>
+        <div class="mb-2">
+          <span class="badge-soft me-2">{{ profile.current_programme or 'Programme' }}</span>
+          <span class="badge-soft">Level {{ profile.programme_level or '100' }}</span>
+        </div>
+        <p class="mb-1"><i class="bi bi-envelope"></i> {{ profile.email or user.email }}</p>
+        <p class="mb-0 text-muted">Index No: {{ profile.index_number or 'N/A' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PERSONAL INFO -->
+  <div class="glass-card p-4 mb-4">
+    <div class="section-title"><i class="bi bi-person"></i> Personal Information</div>
+    <div class="info-grid">
+      <div class="info-item"><strong>Date of Birth</strong>{{ dob_display }}</div>
+      <div class="info-item"><strong>Gender</strong>{{ profile.gender or 'N/A' }}</div>
+      <div class="info-item"><strong>Nationality</strong>{{ profile.nationality or 'N/A' }}</div>
+      <div class="info-item"><strong>Religion</strong>{{ profile.religion or 'N/A' }}</div>
+    </div>
+  </div>
+
+  <!-- ACADEMIC INFO -->
+  <div class="glass-card p-4 mb-4">
+    <div class="section-title"><i class="bi bi-mortarboard"></i> Academic Information</div>
+    <div class="info-grid">
+      <div class="info-item"><strong>Programme</strong>{{ profile.current_programme or 'N/A' }}</div>
+      <div class="info-item"><strong>Level</strong>{{ profile.programme_level or 'N/A' }}</div>
+      <div class="info-item"><strong>Study Format</strong>{{ profile.study_format or 'Regular' }}</div>
+      <div class="info-item"><strong>Academic Year</strong>{{ profile.academic_year or 'N/A' }}</div>
+      <div class="info-item"><strong>Semester</strong>{{ profile.semester or 'N/A' }}</div>
+      <div class="info-item"><strong>Status</strong>{{ profile.academic_status or 'Active' }}</div>
+      <div class="info-item"><strong>Admission Date</strong>{{ admission_date_display }}</div>
+    </div>
+  </div>
+
+  <!-- CONTACT INFO -->
+  <div class="glass-card p-4">
+    <div class="section-title"><i class="bi bi-telephone"></i> Contact Information</div>
+    <div class="info-grid">
+      <div class="info-item"><strong>Email</strong>{{ profile.email or 'N/A' }}</div>
+      <div class="info-item"><strong>Phone</strong>{{ profile.phone or 'N/A' }}</div>
+      <div class="info-item"><strong>Address</strong>{{ profile.address or 'N/A' }}</div>
+      <div class="info-item"><strong>City</strong>{{ profile.city or 'N/A' }}</div>
+      <div class="info-item"><strong>State</strong>{{ profile.state or 'N/A' }}</div>
+      <div class="info-item"><strong>Postal Code</strong>{{ profile.postal_code or 'N/A' }}</div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "student/base_student.html" %}
+
+{% block title %}Results Not Released{% endblock %}
+
+{% block content %}
+<div class="container mt-5 text-center">
+  <div class="p-5 bg-light rounded shadow-sm">
+    <h3 class="text-warning mb-3">📄 Results Not Released Yet</h3>
+    <p class="text-muted mb-4">
+      Your results for this semester are not available yet. Please check back later.
+    </p>
+    <a href="{{ url_for('student.dashboard') }}" class="btn btn-primary">
+      <i class="fas fa-home me-1"></i> Go to Dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Notification Statistics{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h2 class="mb-4">Notification Statistics</h2>
+
+    <div class="row">
+        <!-- Summary Cards -->
+        <div class="col-md-4 mb-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Unread</h6>
+                    <h2 class="card-text text-primary">{{ unread_count }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Today</h6>
+                    <h2 class="card-text text-success">{{ today_count }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">This Week</h6>
+                    <h2 class="card-text text-info">{{ week_count }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breakdown by Type -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Notifications by Type</h5>
+                </div>
+                <div class="card-body">
+                    {% if type_counts %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Type</th>
+                                        <th class="text-end">Count</th>
+                                        <th class="text-end">Percentage</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% set total = type_counts | map(attribute='count') | sum %}
+                                    {% for type_count in type_counts %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-secondary">{{ type_count.type }}</span>
+                                            </td>
+                                            <td class="text-end">{{ type_count.count }}</td>
+                                            <td class="text-end">
+                                                {% if total > 0 %}
+                                                    {{ "%.1f"|format((type_count.count / total) * 100) }}%
+                                                {% else %}
+                                                    0%
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th>Total</th>
+                                        <th class="text-end">{{ total }}</th>
+                                        <th class="text-end">100%</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Progress Bar Visualization -->
+                        <div class="mt-4">
+                            <h6 class="mb-3">Visual Breakdown</h6>
+                            {% set total = type_counts | map(attribute='count') | sum %}
+                            {% for type_count in type_counts %}
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <small>{{ type_count.type }}</small>
+                                        <small class="text-muted">{{ type_count.count }}</small>
+                                    </div>
+                                    <div class="progress" style="height: 20px;">
+                                        {% set percentage = (type_count.count / total) * 100 if total > 0 else 0 %}
+                                        <div class="progress-bar" role="progressbar" 
+                                             style="width: {{ percentage }}%; background-color: {% if loop.index % 4 == 1 %}#0d6efd{% elif loop.index % 4 == 2 %}#28a745{% elif loop.index % 4 == 3 %}#ffc107{% else %}#dc3545{% endif %};" 
+                                             aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                            {{ "%.0f"|format(percentage) }}%
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No notifications yet.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Time-Based Statistics -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Activity Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-muted">Last 24 Hours</h6>
+                        <h3 class="mb-0">{{ today_count }}</h3>
+                        <small class="text-muted">notifications</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6 class="text-muted">Last 7 Days</h6>
+                        <h3 class="mb-0">{{ week_count }}</h3>
+                        <small class="text-muted">notifications</small>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <h6 class="text-muted">Unread</h6>
+                        <h3 class="mb-0 text-danger">{{ unread_count }}</h3>
+                        <small class="text-muted">need attention</small>
+                    </div>
+
+                    <a href="{{ url_for('notifications.list_unread') }}" class="btn btn-outline-danger btn-sm w-100">
+                        View Unread
+                    </a>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mt-3">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('notifications.list_notifications') }}" class="btn btn-outline-primary btn-sm w-100 mb-2">
+                        <i class="fas fa-list"></i> All Notifications
+                    </a>
+                    <a href="{{ url_for('notifications.preferences') }}" class="btn btn-outline-info btn-sm w-100 mb-2">
+                        <i class="fas fa-cog"></i> Preferences
+                    </a>
+                    <form method="POST" action="{{ url_for('notifications.read_all') }}" class="d-inline w-100">
+                        <button type="submit" class="btn btn-outline-success btn-sm w-100" onclick="return confirm('Mark all as read?')">
+                            <i class="fas fa-check-double"></i> Mark All Read
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+</style>
+{% endblock %}

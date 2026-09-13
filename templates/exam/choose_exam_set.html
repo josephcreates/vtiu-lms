@@ -1,0 +1,696 @@
+{% extends 'exam/base_exam.html' %}
+{% block title %}Select Question Set – {{ exam.title }}{% endblock %}
+
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap');
+
+  :root {
+    --primary: #4e73df;
+    --success: #1cc88a;
+    --danger: #e74c3c;
+    --warning: #f39c12;
+    --info: #3498db;
+    --dark: #2c3e50;
+    --light: #f8f9fa;
+    --border: #e9ecef;
+    --text-primary: #2c3e50;
+    --text-muted: #7f8c8d;
+  }
+
+  * {
+    font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+  }
+
+  .page-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 3rem 1rem;
+  }
+
+  /* ===== HEADER ===== */
+  .page-header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .header-back {
+    display: inline-block;
+    margin-bottom: 1.5rem;
+  }
+
+  .header-back a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+  }
+
+  .header-back a:hover {
+    gap: 0.75rem;
+    color: var(--info);
+  }
+
+  .header-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    animation: slideDown 0.5s ease;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .header-subtitle {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    animation: slideDown 0.5s ease 0.1s both;
+  }
+
+  /* ===== EXAM INFO CARD ===== */
+  .exam-info-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 3rem;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.2);
+    animation: slideDown 0.5s ease 0.15s both;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .info-label {
+    font-size: 0.85rem;
+    opacity: 0.9;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .info-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  /* ===== SETS SECTION ===== */
+  .sets-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+
+  .sets-header h3 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .sets-count {
+    background: var(--primary);
+    color: white;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  /* ===== SET CARDS ===== */
+  .sets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 2rem;
+    animation: fadeIn 0.5s ease 0.2s both;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .set-card {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .set-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+  }
+
+  .set-card:hover::before {
+    left: 100%;
+  }
+
+  .set-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+    border-color: var(--primary);
+  }
+
+  .set-card.active {
+    border-color: var(--success);
+    background: linear-gradient(135deg, #f0fdf4 0%, #e0f2f1 100%);
+  }
+
+  .set-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .set-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    word-break: break-word;
+  }
+
+  .set-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .set-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .set-detail-item i {
+    color: var(--primary);
+    width: 18px;
+    text-align: center;
+  }
+
+  .set-description {
+    background: var(--light);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    border-left: 3px solid var(--primary);
+  }
+
+  .set-description:empty {
+    display: none;
+  }
+
+  .set-actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .choose-btn {
+    flex: 1;
+    padding: 0.85rem 1.25rem;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(78, 115, 223, 0.3);
+  }
+
+  .choose-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
+  }
+
+  .choose-btn:active {
+    transform: translateY(0);
+  }
+
+  .info-btn {
+    padding: 0.85rem 1rem;
+    background: var(--light);
+    color: var(--primary);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .info-btn:hover {
+    border-color: var(--primary);
+    background: rgba(78, 115, 223, 0.05);
+  }
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  }
+
+  .empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+
+  .empty-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-text {
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+    font-size: 1rem;
+  }
+
+  /* ===== MODAL (for set details) ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal-overlay.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .modal-content {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 1.5rem;
+  }
+
+  .modal-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .modal-close:hover {
+    color: var(--text-primary);
+    transform: rotate(90deg);
+  }
+
+  .modal-body {
+    margin-bottom: 2rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+  }
+
+  .modal-footer {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .modal-btn {
+    flex: 1;
+    padding: 0.85rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .modal-btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
+    color: white;
+  }
+
+  .modal-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(78, 115, 223, 0.3);
+  }
+
+  .modal-btn-secondary {
+    background: var(--light);
+    color: var(--text-primary);
+    border: 2px solid var(--border);
+  }
+
+  .modal-btn-secondary:hover {
+    border-color: var(--text-primary);
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .page-container {
+      padding: 1.5rem 1rem;
+    }
+
+    .header-title {
+      font-size: 1.6rem;
+    }
+
+    .header-subtitle {
+      font-size: 0.95rem;
+    }
+
+    .sets-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .exam-info-card {
+      padding: 1.5rem;
+    }
+
+    .info-grid {
+      gap: 1rem;
+    }
+
+    .set-card {
+      padding: 1.5rem;
+    }
+  }
+
+  /* ===== LOADING STATE ===== */
+  .choose-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .choose-btn:disabled::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 0.5rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+</style>
+
+<div class="page-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-back">
+      <a href="{{ url_for('exam.exams') }}">
+        <i class="fas fa-arrow-left"></i> Back to Exams
+      </a>
+    </div>
+    <h1 class="header-title"><i class="fas fa-list-check"></i> Select Your Question Set</h1>
+    <p class="header-subtitle">Choose which set of questions you'd like to answer for this exam</p>
+  </div>
+
+  <!-- Exam Info Card -->
+  <div class="exam-info-card">
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="info-label"><i class="fas fa-book-open"></i> Exam Title</span>
+        <span class="info-value">{{ exam.title }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label"><i class="fas fa-graduation-cap"></i> Programme</span>
+        <span class="info-value">{{ exam.programme_name }} — Level {{ exam.programme_level }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label"><i class="fas fa-bookmark"></i> Course</span>
+        <span class="info-value">{{ exam.course.code }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label"><i class="fas fa-hourglass-half"></i> Duration</span>
+        <span class="info-value">
+          {% if exam.duration_minutes >= 60 %}
+            {{ (exam.duration_minutes / 60)|int }}h {{ exam.duration_minutes % 60 }}m
+          {% else %}
+            {{ exam.duration_minutes }}m
+          {% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sets Section -->
+  {% if exam.sets %}
+    <div class="sets-header">
+      <h3><i class="fas fa-clone"></i> Available Sets</h3>
+      <span class="sets-count">{{ exam.sets|length }}</span>
+    </div>
+
+    <div class="sets-grid">
+      {% for set in exam.sets %}
+        <div class="set-card" data-set-id="{{ set.id }}">
+          <div class="set-icon">
+            <i class="fas fa-file-alt"></i>
+          </div>
+          
+          <h4 class="set-name">{{ set.name }}</h4>
+
+          <div class="set-details">
+            {% if set.total_questions %}
+              <div class="set-detail-item">
+                <i class="fas fa-question-circle"></i>
+                <span>{{ set.total_questions }} questions</span>
+              </div>
+            {% endif %}
+            
+            {% if set.max_score %}
+              <div class="set-detail-item">
+                <i class="fas fa-star"></i>
+                <span>{{ set.max_score }} total marks</span>
+              </div>
+            {% endif %}
+
+            {% if set.difficulty %}
+              <div class="set-detail-item">
+                <i class="fas fa-signal"></i>
+                <span>
+                  {% if set.difficulty == 'easy' %}
+                    Easy difficulty
+                  {% elif set.difficulty == 'medium' %}
+                    Medium difficulty
+                  {% elif set.difficulty == 'hard' %}
+                    Hard difficulty
+                  {% else %}
+                    {{ set.difficulty|capitalize }}
+                  {% endif %}
+                </span>
+              </div>
+            {% endif %}
+          </div>
+
+          {% if set.description %}
+            <div class="set-description">{{ set.description }}</div>
+          {% endif %}
+
+          <div class="set-actions">
+            <form method="POST" 
+                  action="{{ url_for('exam.choose_exam_set', exam_id=exam.id, set_id=set.id) }}"
+                  style="flex: 1;">
+              {{ csrf_token() if csrf_token else '' }}
+              <button type="submit" class="choose-btn">
+                <i class="fas fa-check-circle"></i> Choose This Set
+              </button>
+            </form>
+            {% if set.description %}
+              <button type="button" class="info-btn" onclick="showSetDetails('{{ set.id }}', '{{ set.name }}', `{{ set.description }}`)">
+                <i class="fas fa-info-circle"></i>
+              </button>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+      <div class="empty-icon">
+        <i class="fas fa-inbox"></i>
+      </div>
+      <h3 class="empty-title">No Question Sets Available</h3>
+      <p class="empty-text">The instructor has not yet created question sets for this exam. Please contact your instructor or check back later.</p>
+      <a href="{{ url_for('exam.exams') }}" class="choose-btn" style="display: inline-block; text-decoration: none;">
+        <i class="fas fa-arrow-left"></i> Back to Exams
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Modal for Set Details -->
+<div class="modal-overlay" id="detailsModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <button type="button" class="modal-close" onclick="closeModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button type="button" class="modal-btn modal-btn-secondary" onclick="closeModal()">
+        Close
+      </button>
+      <button type="button" class="modal-btn modal-btn-primary" onclick="proceedFromModal()">
+        <i class="fas fa-arrow-right"></i> Proceed
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let selectedSetId = null;
+
+  function showSetDetails(setId, setName, description) {
+    selectedSetId = setId;
+    document.getElementById('modalTitle').textContent = setName;
+    document.getElementById('modalBody').textContent = description;
+    document.getElementById('detailsModal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('detailsModal').classList.remove('active');
+    selectedSetId = null;
+  }
+
+  function proceedFromModal() {
+    if (selectedSetId) {
+      // Find and submit the corresponding form
+      const form = document.querySelector(`form[action*="set_id=${selectedSetId}"]`);
+      if (form) {
+        form.submit();
+      }
+    }
+    closeModal();
+  }
+
+  // Close modal on escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('detailsModal').classList.contains('active')) {
+      closeModal();
+    }
+  });
+
+  // Close modal on overlay click
+  document.getElementById('detailsModal').addEventListener('click', (e) => {
+    if (e.target.id === 'detailsModal') {
+      closeModal();
+    }
+  });
+
+  // Smooth animations on load
+  document.addEventListener('DOMContentLoaded', () => {
+    const cards = document.querySelectorAll('.set-card');
+    cards.forEach((card, index) => {
+      card.style.animationDelay = `${0.2 + index * 0.05}s`;
+      card.style.animation = 'slideDown 0.5s ease both';
+    });
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% block title %}Notification Preferences{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h2 class="mb-4">Notification Preferences</h2>
+
+            <!-- Channel Preferences -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-envelope"></i> Delivery Channels</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('notifications.update_preferences') }}">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="email_enabled" id="email_enabled" 
+                                   {% if preferences.email_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="email_enabled">
+                                <strong>Email Notifications</strong>
+                                <small class="text-muted d-block">Receive notifications via email</small>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="in_app_enabled" id="in_app_enabled" 
+                                   {% if preferences.in_app_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="in_app_enabled">
+                                <strong>In-App Notifications</strong>
+                                <small class="text-muted d-block">Show notifications in the LMS</small>
+                            </label>
+                        </div>
+
+                        <hr>
+
+                        <h6 class="mb-3">Digest Settings</h6>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="digest_enabled" id="digest_enabled" 
+                                   {% if preferences.digest_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="digest_enabled">
+                                <strong>Daily Digest</strong>
+                                <small class="text-muted d-block">Receive one daily email instead of individual notifications</small>
+                            </label>
+                        </div>
+
+                        <div class="mb-3" id="digest_time_group" style="display: {% if preferences.digest_enabled %}block{% else %}none{% endif %};">
+                            <label for="digest_time" class="form-label">Digest Time (if enabled)</label>
+                            <input type="time" class="form-control" name="digest_time" id="digest_time" 
+                                   value="{{ preferences.digest_time }}">
+                        </div>
+
+                        <script>
+                            document.getElementById('digest_enabled').addEventListener('change', function() {
+                                document.getElementById('digest_time_group').style.display = this.checked ? 'block' : 'none';
+                            });
+                        </script>
+
+                        <button type="submit" class="btn btn-primary">Save Channel Preferences</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quiet Hours -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-moon"></i> Quiet Hours</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('notifications.update_preferences') }}">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="quiet_hours_enabled" id="quiet_hours_enabled" 
+                                   {% if preferences.quiet_hours_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="quiet_hours_enabled">
+                                <strong>Enable Quiet Hours</strong>
+                                <small class="text-muted d-block">Don't send notifications during these hours (you'll still see them in-app)</small>
+                            </label>
+                        </div>
+
+                        <div id="quiet_hours_group" style="display: {% if preferences.quiet_hours_enabled %}block{% else %}none{% endif %};">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="quiet_start" class="form-label">Quiet Start Time</label>
+                                    <input type="time" class="form-control" name="quiet_start" id="quiet_start" 
+                                           value="{{ preferences.quiet_start }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="quiet_end" class="form-label">Quiet End Time</label>
+                                    <input type="time" class="form-control" name="quiet_end" id="quiet_end" 
+                                           value="{{ preferences.quiet_end }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <script>
+                            document.getElementById('quiet_hours_enabled').addEventListener('change', function() {
+                                document.getElementById('quiet_hours_group').style.display = this.checked ? 'block' : 'none';
+                            });
+                        </script>
+
+                        <button type="submit" class="btn btn-warning">Save Quiet Hours</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Notification Type Preferences -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-filter"></i> Notification Types</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Enable/disable notifications for specific events:</p>
+                    <form method="POST" action="{{ url_for('notifications.update_preferences') }}">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="mb-2">Academic</h6>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="type_quiz_created" id="type_quiz_created" 
+                                           {% if enabled_types.get('quiz_created', True) %}checked{% endif %}>
+                                    <label class="form-check-label" for="type_quiz_created">Quiz Created</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="type_quiz_reminder" id="type_quiz_reminder" 
+                                           {% if enabled_types.get('quiz_reminder', True) %}checked{% endif %}>
+                                    <label class="form-check-label" for="type_quiz_reminder">Quiz Reminders</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="type_quiz_result" id="type_quiz_result" 
+                                           {% if enabled_types.get('quiz_result', True) %}checked{% endif %}>
+                                    <label class="form-check-label" for="type_quiz_result">Quiz Results</label>
+                                </div>
+
+                                <div class="mt-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="type_assignment_created" id="type_assignment_created" 
+                                               {% if enabled_types.get('assignment_created', True) %}checked{% endif %}>
+                                        <label class="form-check-label" for="type_assignment_created">Assignment Posted</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="type_assignment_reminder" id="type_assignment_reminder" 
+                                               {% if enabled_types.get('assignment_reminder', True) %}checked{% endif %}>
+                                        <label class="form-check-label" for="type_assignment_reminder">Assignment Reminders</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="type_assignment_graded" id="type_assignment_graded" 
+                                               {% if enabled_types.get('assignment_graded', True) %}checked{% endif %}>
+                                        <label class="form-check-label" for="type_assignment_graded">Assignment Graded</label>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="type_exam_scheduled" id="type_exam_scheduled" 
+                                               {% if enabled_types.get('exam_scheduled', True) %}checked{% endif %}>
+                                        <label class="form-check-label" for="type_exam_scheduled">Exam Scheduled</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="type_exam_reminder" id="type_exam_reminder" 
+                                               {% if enabled_types.get('exam_reminder', True) %}checked{% endif %}>
+                                        <label class="form-check-label" for="type_exam_reminder">Exam Reminders</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="type_grade_released" id="type_grade_released" 
+                                               {% if enabled_types.get('grade_released', True) %}checked{% endif %}>
+                                        <label class="form-check-label" for="type_grade_released">Grades Released</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <h6 class="mb-2">Administrative</h6>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="type_fee_assigned" id="type_fee_assigned" 
+                                           {% if enabled_types.get('fee_assigned', True) %}checked{% endif %}>
+                                    <label class="form-check-label" for="type_fee_assigned">Fee Assigned</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="type_fee_payment_reminder" id="type_fee_payment_reminder" 
+                                           {% if enabled_types.get('fee_payment_reminder', True) %}checked{% endif %}>
+                                    <label class="form-check-label" for="type_fee_payment_reminder">Payment Reminders</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="type_attendance_warning" id="type_attendance_warning" 
+                                           {% if enabled_types.get('attendance_warning', True) %}checked{% endif %}>
+                                    <label class="form-check-label" for="type_attendance_warning">Attendance Warnings</label>
+                                </div>
+
+                                <div class="mt-3">
+                                    <h6 class="mb-2">System</h6>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="type_announcement" id="type_announcement" 
+                                               {% if enabled_types.get('announcement', True) %}checked{% endif %}>
+                                        <label class="form-check-label" for="type_announcement">Announcements</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="type_course_registration" id="type_course_registration" 
+                                               {% if enabled_types.get('course_registration', True) %}checked{% endif %}>
+                                        <label class="form-check-label" for="type_course_registration">Course Registration</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="type_promotion" id="type_promotion" 
+                                               {% if enabled_types.get('promotion', True) %}checked{% endif %}>
+                                        <label class="form-check-label" for="type_promotion">Academic Progress</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-info mt-3">Save Notification Types</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Mute Notifications -->
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-bell-slash"></i> Mute All Notifications</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Temporarily disable all email notifications:</p>
+                    <form method="POST" action="{{ url_for('notifications.mute_notifications') }}" class="d-flex gap-2">
+                        <select name="hours" class="form-select" style="max-width: 150px;">
+                            <option value="1">1 hour</option>
+                            <option value="4">4 hours</option>
+                            <option value="8">8 hours</option>
+                            <option value="24">24 hours</option>
+                        </select>
+                        <button type="submit" class="btn btn-danger">Mute</button>
+                    </form>
+                    {% if preferences.muted_until and preferences.muted_until > now %}
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="fas fa-info-circle"></i> Notifications are muted until {{ preferences.muted_until.strftime('%d %b %Y, %I:%M %p') }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

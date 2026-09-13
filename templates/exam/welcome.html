@@ -1,0 +1,394 @@
+{% extends "exam/base_exam.html" %}
+{% block title %}Exams Portal Welcome{% endblock %}
+
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap');
+
+  :root {
+    --primary: #4e73df;
+    --success: #1cc88a;
+    --info: #3498db;
+    --dark: #2c3e50;
+    --light: #f8f9fa;
+    --text-primary: #2c3e50;
+    --text-muted: #7f8c8d;
+  }
+
+  * {
+    font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .welcome-container {
+    width: 100%;
+    max-width: 700px;
+    padding: 1.5rem;
+  }
+
+  /* ===== HERO CARD ===== */
+  .welcome-card {
+    background: white;
+    border-radius: 24px;
+    padding: 3.5rem 2.5rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    animation: slideUpHero 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  @keyframes slideUpHero {
+    from {
+      opacity: 0;
+      transform: translateY(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Decorative background elements */
+  .welcome-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(78, 115, 223, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+  }
+
+  .welcome-card::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -30%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(52, 152, 219, 0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+  }
+
+  .welcome-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== ICON ===== */
+  .welcome-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 2rem;
+    font-size: 3rem;
+    color: white;
+    box-shadow: 0 10px 30px rgba(78, 115, 223, 0.3);
+    animation: bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+  }
+
+  @keyframes bounceIn {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* ===== HEADINGS ===== */
+  .welcome-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+    line-height: 1.2;
+    animation: fadeInScale 0.6s ease 0.3s both;
+  }
+
+  .welcome-subtitle {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    margin: 0 0 2.5rem 0;
+    line-height: 1.6;
+    animation: fadeInScale 0.6s ease 0.4s both;
+  }
+
+  @keyframes fadeInScale {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* ===== FEATURES ===== */
+  .features-section {
+    margin: 2.5rem 0;
+    padding: 2rem 0;
+    border-top: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+    animation: fadeInScale 0.6s ease 0.45s both;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .feature-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .feature-icon {
+    font-size: 2rem;
+    color: var(--primary);
+  }
+
+  .feature-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: center;
+  }
+
+  /* ===== CTA BUTTON ===== */
+  .login-btn {
+    display: inline-block;
+    padding: 1.1rem 2.5rem;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 8px 24px rgba(78, 115, 223, 0.4);
+    border: none;
+    margin-top: 0.5rem;
+    animation: fadeInScale 0.6s ease 0.5s both;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .login-btn:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(78, 115, 223, 0.5);
+  }
+
+  .login-btn:active {
+    transform: translateY(-1px);
+  }
+
+  /* ===== FOOTER TEXT ===== */
+  .welcome-footer {
+    margin-top: 2.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e9ecef;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    animation: fadeIn 0.6s ease 0.55s both;
+  }
+
+  .welcome-footer p {
+    margin: 0.5rem 0;
+    line-height: 1.6;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .welcome-card {
+      padding: 2.5rem 1.75rem;
+      border-radius: 20px;
+    }
+
+    .welcome-title {
+      font-size: 2rem;
+    }
+
+    .welcome-subtitle {
+      font-size: 1rem;
+    }
+
+    .login-btn {
+      width: 100%;
+    }
+
+    .features-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .feature-icon {
+      font-size: 1.75rem;
+    }
+
+    .feature-name {
+      font-size: 0.75rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    body {
+      padding: 1rem;
+    }
+
+    .welcome-container {
+      padding: 1rem;
+    }
+
+    .welcome-card {
+      padding: 2rem 1.5rem;
+      border-radius: 16px;
+    }
+
+    .welcome-title {
+      font-size: 1.6rem;
+    }
+
+    .welcome-subtitle {
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .welcome-icon {
+      width: 80px;
+      height: 80px;
+      font-size: 2.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .features-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .feature-icon {
+      font-size: 1.5rem;
+    }
+
+    .welcome-footer {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+    }
+
+    .login-btn {
+      padding: 1rem 1.75rem;
+      font-size: 1rem;
+    }
+  }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Floating animation for icon */
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .welcome-icon {
+    animation: bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both, 
+               float 3s ease-in-out 1.2s infinite;
+  }
+</style>
+
+<div class="welcome-container">
+  <div class="welcome-card">
+    <div class="welcome-content">
+      <!-- Icon -->
+      <div class="welcome-icon">
+        <i class="fas fa-graduation-cap"></i>
+      </div>
+
+      <!-- Title & Subtitle -->
+      <h1 class="welcome-title">Welcome to the Exams Portal</h1>
+      <p class="welcome-subtitle">
+        Access your scheduled exams, track your progress, and manage your academic assessments all in one secure platform.
+      </p>
+
+      <!-- Features -->
+      <div class="features-section">
+        <div class="features-grid">
+          <div class="feature-item">
+            <div class="feature-icon">
+              <i class="fas fa-list-check"></i>
+            </div>
+            <div class="feature-name">View Exams</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="feature-name">Track Time</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="feature-name">Check Results</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CTA Button -->
+      <a href="{{ url_for('exam.exam_login') }}" class="login-btn">
+        <i class="fas fa-sign-in-alt"></i> Enter Exams Portal
+      </a>
+
+      <!-- Footer -->
+      <div class="welcome-footer">
+        <p>
+          <i class="fas fa-lock"></i> Secure Login Required
+        </p>
+        <p>
+          Your exam data is protected with industry-standard encryption and authentication.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

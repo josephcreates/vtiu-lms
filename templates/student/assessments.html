@@ -1,0 +1,106 @@
+{% extends "student/base_student.html" %}
+
+{% block title %}My Assessments{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-clipboard-list me-2"></i>My Assessment Results</h2>
+            <p class="text-muted">Raw scores and feedback from quizzes, assignments, and exams</p>
+        </div>
+    </div>
+
+    {% if message %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <i class="fas fa-info-circle me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endif %}
+
+    {% if assessments %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Type</th>
+                        <th>Course</th>
+                        <th>Title</th>
+                        <th class="text-center">Raw Score</th>
+                        <th class="text-center">Percentage</th>
+                        <th>Date Submitted</th>
+                        <th>Feedback</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assessment in assessments %}
+                    <tr>
+                        <td>
+                            {% if assessment.type == 'Quiz' %}
+                                <span class="badge bg-primary"><i class="fas fa-question-circle me-1"></i>Quiz</span>
+                            {% elif assessment.type == 'Assignment' %}
+                                <span class="badge bg-info"><i class="fas fa-file-alt me-1"></i>Assignment</span>
+                            {% else %}
+                                <span class="badge bg-warning"><i class="fas fa-pencil-alt me-1"></i>Exam</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ assessment.course }}</strong></td>
+                        <td>{{ assessment.title }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-success">{{ "%.2f"|format(assessment.raw_score) }} / {{ "%.2f"|format(assessment.max_score) }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% if assessment.max_score > 0 %}
+                                {% set percentage = (assessment.raw_score / assessment.max_score) * 100 %}
+                                {% if percentage >= 70 %}
+                                    <span class="badge bg-success">{{ "%.1f"|format(percentage) }}%</span>
+                                {% elif percentage >= 50 %}
+                                    <span class="badge bg-warning">{{ "%.1f"|format(percentage) }}%</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{{ "%.1f"|format(percentage) }}%</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assessment.date %}
+                                <small class="text-muted">{{ assessment.date }}</small>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assessment.feedback %}
+                                <small>{{ assessment.feedback[:100] }}{% if assessment.feedback|length > 100 %}...{% endif %}</small>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="alert alert-info mt-4">
+            <h5><i class="fas fa-info-circle me-2"></i>About These Results</h5>
+            <p class="mb-0">
+                These are your <strong>raw scores and feedback</strong> for individual assessments. 
+                Your <strong>final weighted grades</strong> and course GPA will be available after the semester is finalized 
+                and results are released by the administration.
+            </p>
+        </div>
+
+    {% else %}
+        <div class="alert alert-light text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h5>No Assessment Results Yet</h5>
+            <p class="text-muted">Your assessment results will appear here as teachers grade your quizzes, assignments, and exams.</p>
+            <a href="{{ url_for('student.register_courses') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-book me-1"></i>View Registered Courses
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

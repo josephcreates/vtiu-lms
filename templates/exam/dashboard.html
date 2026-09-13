@@ -1,0 +1,582 @@
+{% extends "exam/base_exam.html" %}
+{% block title %}My Exams Dashboard{% endblock %}
+
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap');
+
+  :root {
+    --primary: #4e73df;
+    --success: #1cc88a;
+    --danger: #e74c3c;
+    --warning: #f39c12;
+    --info: #3498db;
+    --dark: #2c3e50;
+    --light: #f8f9fa;
+    --border: #e9ecef;
+    --text-primary: #2c3e50;
+    --text-muted: #7f8c8d;
+  }
+
+  * {
+    font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+  }
+
+  .dashboard-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+
+  /* ===== HEADER ===== */
+  .dashboard-header {
+    margin-bottom: 3rem;
+    animation: slideDown 0.5s ease;
+  }
+
+  .header-welcome {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .header-content h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem 0;
+  }
+
+  .header-content p {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    margin: 0;
+  }
+
+  .header-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+  }
+
+  .stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    transition: all 0.2s ease;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  .stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ===== EXAM CARDS GRID ===== */
+  .exams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 2rem;
+    animation: fadeIn 0.5s ease 0.1s both;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .exam-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    flex-direction: column;
+    border-left: 5px solid var(--primary);
+    animation: slideUp 0.5s ease both;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .exam-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+    border-left-width: 6px;
+  }
+
+  .exam-card.status-submitted {
+    border-left-color: var(--success);
+  }
+
+  .exam-card.status-ongoing {
+    border-left-color: var(--primary);
+  }
+
+  .exam-card.status-upcoming {
+    border-left-color: var(--warning);
+  }
+
+  .exam-card.status-closed {
+    border-left-color: var(--border);
+  }
+
+  /* Header within card */
+  .exam-card-header {
+    padding: 1.75rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .exam-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.75rem 0;
+    line-height: 1.4;
+  }
+
+  .exam-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .meta-item i {
+    color: var(--primary);
+    width: 16px;
+  }
+
+  /* Card body */
+  .exam-card-body {
+    padding: 1.75rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  /* Status badge */
+  .exam-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    width: fit-content;
+  }
+
+  .status-submitted {
+    background: rgba(28, 200, 138, 0.1);
+    color: var(--success);
+  }
+
+  .status-ongoing {
+    background: rgba(78, 115, 223, 0.1);
+    color: var(--primary);
+  }
+
+  .status-upcoming {
+    background: rgba(243, 156, 18, 0.1);
+    color: var(--warning);
+  }
+
+  .status-closed {
+    background: rgba(127, 140, 141, 0.1);
+    color: var(--text-muted);
+  }
+
+  /* Info section */
+  .exam-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--light);
+    border-radius: 10px;
+    border-left: 3px solid var(--primary);
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+  }
+
+  .info-label {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .info-value {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  /* Score display */
+  .exam-score {
+    text-align: center;
+    padding: 1rem;
+    background: linear-gradient(135deg, rgba(28, 200, 138, 0.05) 0%, rgba(52, 152, 219, 0.05) 100%);
+    border-radius: 10px;
+    border: 2px solid var(--success);
+  }
+
+  .score-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--success);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+  }
+
+  .score-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+
+  /* Actions */
+  .exam-actions {
+    display: flex;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .action-btn {
+    flex: 1;
+    padding: 0.85rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .btn-primary-action {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(78, 115, 223, 0.3);
+  }
+
+  .btn-primary-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
+  }
+
+  .btn-success-action {
+    background: linear-gradient(135deg, var(--success) 0%, #16a085 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(28, 200, 138, 0.3);
+  }
+
+  .btn-success-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(28, 200, 138, 0.4);
+  }
+
+  .btn-disabled {
+    background: var(--light);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-disabled:hover {
+    transform: none;
+  }
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    animation: slideUp 0.5s ease;
+  }
+
+  .empty-icon {
+    font-size: 4rem;
+    color: #ccc;
+    margin-bottom: 1.5rem;
+  }
+
+  .empty-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-text {
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .empty-link {
+    display: inline-block;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(78, 115, 223, 0.3);
+  }
+
+  .empty-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .dashboard-container {
+      padding: 1rem;
+    }
+
+    .header-content h1 {
+      font-size: 1.6rem;
+    }
+
+    .exams-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .header-stats {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .action-btn {
+      font-size: 0.85rem;
+      padding: 0.75rem 0.75rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .exam-meta {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .action-btn {
+      flex-direction: column;
+      font-size: 0.8rem;
+    }
+  }
+</style>
+
+<div class="dashboard-container">
+  <!-- Header with Stats -->
+  <div class="dashboard-header">
+    <div class="header-welcome">
+      <div class="header-content">
+        <h1><i class="fas fa-graduation-cap"></i> My Exams</h1>
+        <p>Track and manage your exam schedule</p>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    {% if exams %}
+      <div class="header-stats">
+        <div class="stat-card">
+          <div class="stat-number">{{ exams|length }}</div>
+          <div class="stat-label">Total Exams</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{ exams|selectattr('status', 'equalto', 'Ongoing')|list|length }}</div>
+          <div class="stat-label">Available Now</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{ exams|selectattr('attempted', 'equalto', true)|list|length }}</div>
+          <div class="stat-label">Attempted</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{ exams|selectattr('status', 'equalto', 'Upcoming')|list|length }}</div>
+          <div class="stat-label">Upcoming</div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Exams Grid -->
+  {% if exams %}
+    <div class="exams-grid">
+      {% for item in exams %}
+        <div class="exam-card status-{{ item.status|lower }} {% if item.attempted %}status-submitted{% endif %}" style="animation-delay: {{ loop.index0 * 0.05 }}s;">
+          
+          <!-- Card Header -->
+          <div class="exam-card-header">
+            <h3 class="exam-title">{{ item.exam.title }}</h3>
+            <div class="exam-meta">
+              <div class="meta-item">
+                <i class="fas fa-graduation-cap"></i>
+                <span>{{ item.exam.programme_name }} — Level {{ item.exam.programme_level }}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fas fa-bookmark"></i>
+                <span>{{ item.exam.course.code }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Body -->
+          <div class="exam-card-body">
+            <!-- Status Badge -->
+            {% if item.attempted %}
+              <div class="exam-status status-submitted">
+                <i class="fas fa-check-circle"></i> Submitted
+              </div>
+            {% else %}
+              {% if item.status == 'Ongoing' %}
+                <div class="exam-status status-ongoing">
+                  <i class="fas fa-clock"></i> Ongoing
+                </div>
+              {% elif item.status == 'Upcoming' %}
+                <div class="exam-status status-upcoming">
+                  <i class="fas fa-hourglass-start"></i> Upcoming
+                </div>
+              {% else %}
+                <div class="exam-status status-closed">
+                  <i class="fas fa-ban"></i> Closed
+                </div>
+              {% endif %}
+            {% endif %}
+
+            <!-- Exam Info -->
+            <div class="exam-info">
+              <div class="info-row">
+                <span class="info-label"><i class="fas fa-calendar-alt"></i> Starts</span>
+                <span class="info-value">{{ item.exam.start_datetime.strftime("%b %d, %I:%M %p") }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fas fa-calendar-check"></i> Ends</span>
+                <span class="info-value">{{ item.exam.end_datetime.strftime("%b %d, %I:%M %p") }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fas fa-hourglass-half"></i> Duration</span>
+                <span class="info-value">
+                  {% if item.exam.duration_minutes >= 60 %}
+                    {{ (item.exam.duration_minutes / 60)|int }}h {{ item.exam.duration_minutes % 60 }}m
+                  {% else %}
+                    {{ item.exam.duration_minutes }}m
+                  {% endif %}
+                </span>
+              </div>
+            </div>
+
+            <!-- Score (if attempted) -->
+            {% if item.attempted and item.submission and item.submission.score is not none %}
+              <div class="exam-score">
+                <div class="score-label">Your Score</div>
+                <div class="score-value">{{ item.submission.score|int }}</div>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Actions -->
+          <div class="exam-actions">
+            {% if not item.attempted and item.status == 'Ongoing' %}
+              <a href="{{ url_for('exam.exam_instructions', exam_id=item.exam.id) }}" class="action-btn btn-primary-action">
+                <i class="fas fa-play-circle"></i> Start Exam
+              </a>
+            {% elif item.attempted %}
+              <a href="{{ url_for('exam.exam_result', submission_id=item.submission_id) }}" class="action-btn btn-success-action">
+                <i class="fas fa-eye"></i> View Result
+              </a>
+            {% else %}
+              <button class="action-btn btn-disabled" disabled>
+                <i class="fas fa-lock"></i> Unavailable
+              </button>
+            {% endif %}
+          </div>
+
+        </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+      <div class="empty-icon">
+        <i class="fas fa-inbox"></i>
+      </div>
+      <h2 class="empty-title">No Exams Yet</h2>
+      <p class="empty-text">You don't have any exams scheduled at the moment. Check back later for updates.</p>
+      <a href="{{ url_for('exam.exams') }}" class="empty-link">
+        <i class="fas fa-refresh"></i> Refresh
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

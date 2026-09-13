@@ -1,0 +1,101 @@
+{% extends 'student/base_student.html' %}
+{% block title %}Book Appointment{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+
+  <!-- Page Header -->
+  <div class="text-center mb-5">
+    <h3 class="fw-bold text-primary mb-2"><i class="bi bi-calendar-event-fill me-2"></i>Book an Appointment</h3>
+    <p class="text-muted">Click on a slot below to choose a convenient time with your teacher</p>
+  </div>
+
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- Booking Form -->
+  <form method="POST" class="mx-auto" style="max-width: 800px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="slot_id" id="slot_id">
+
+    <!-- Slots Grid -->
+    <div class="row g-3 mb-4">
+      {% for slot in slots %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card slot-card h-100 shadow-sm border cursor-pointer" 
+             data-slot-id="{{ slot.id }}">
+          <div class="card-body">
+            <h6 class="card-title mb-2 text-primary">{{ slot.teacher_name }}</h6>
+            <p class="mb-1 fw-semibold">{{ slot.date.strftime('%A, %d %B %Y') }}</p>
+            <p class="mb-0 text-muted">{{ slot.start_time.strftime('%I:%M %p') }} - {{ slot.end_time.strftime('%I:%M %p') }}</p>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Optional Note -->
+    <div class="mb-4">
+      <label for="note" class="form-label fw-semibold">Optional Note</label>
+      <textarea name="note" class="form-control" rows="3" placeholder="Mention any specific reason or detail (optional)"></textarea>
+    </div>
+
+    <!-- Submit Button -->
+    <div class="d-grid">
+      <button type="submit" class="btn btn-primary btn-lg">
+        <i class="bi bi-calendar-check-fill me-2"></i> Book Appointment
+      </button>
+    </div>
+  </form>
+
+</div>
+
+<!-- JS to handle card selection -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cards = document.querySelectorAll('.slot-card');
+  const hiddenInput = document.getElementById('slot_id');
+
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      // remove selection from all cards
+      cards.forEach(c => c.classList.remove('border-primary', 'shadow-lg'));
+      // mark this card as selected
+      card.classList.add('border-primary', 'shadow-lg');
+      hiddenInput.value = card.dataset.slotId;
+    });
+  });
+});
+</script>
+
+<style>
+body {
+  background-color: #f8f9fa;
+}
+
+.slot-card {
+  border-radius: 0.75rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.slot-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+}
+
+.cursor-pointer { cursor: pointer; }
+
+.card-title {
+  font-size: 1rem;
+}
+</style>
+{% endblock %}

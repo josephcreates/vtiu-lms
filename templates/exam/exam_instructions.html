@@ -1,0 +1,384 @@
+{% extends 'exam/base_exam.html' %}
+{% block title %}Exam Instructions | {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Back Navigation -->
+  <a href="{{ url_for('exam.exams') }}" class="btn btn-outline-secondary btn-sm mb-3">
+    <i class="fas fa-arrow-left"></i> Back to My Exams
+  </a>
+
+  <!-- Main Content Grid -->
+  <div class="row g-4">
+    
+    <!-- Left Column: Exam Details & Instructions -->
+    <div class="col-lg-8">
+      
+      <!-- Exam Header Card -->
+      <div class="card border-0 shadow-lg mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="card-body">
+          <h3 class="card-title mb-3"><i class="fas fa-book-open"></i> {{ exam.title }}</h3>
+          <p class="mb-2">
+            <strong>Course:</strong> {{ exam.course.code }} — {{ exam.course.name }}
+          </p>
+          <p class="mb-3">
+            <strong>Programme:</strong> {{ exam.programme_name }} (Level {{ exam.programme_level }})
+          </p>
+          <hr class="border-white-50">
+          <div class="row text-center">
+            <div class="col-md-4">
+              <small class="opacity-75">Duration</small><br>
+              <h6 class="mb-0">
+                {% if exam.duration_minutes >= 60 %}
+                  {{ (exam.duration_minutes / 60)|int }}h {{ exam.duration_minutes % 60 }}m
+                {% else %}
+                  {{ exam.duration_minutes }}m
+                {% endif %}
+              </h6>
+            </div>
+            <div class="col-md-4">
+              <small class="opacity-75">Questions</small><br>
+              <h6 class="mb-0">
+                {% if preview_set and preview_set.total_questions %}
+                  {{ preview_set.total_questions }}
+                {% else %}
+                  TBD
+                {% endif %}
+              </h6>
+            </div>
+            <div class="col-md-4">
+              <small class="opacity-75">Total Marks</small><br>
+              <h6 class="mb-0">
+                {% if preview_set and preview_set.max_score %}
+                  {{ preview_set.max_score }}
+                {% else %}
+                  TBD
+                {% endif %}
+              </h6>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exam Schedule -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom">
+          <h6 class="mb-0"><i class="fas fa-calendar-alt"></i> Schedule</h6>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6 mb-3 mb-md-0">
+              <small class="text-muted d-block">Starts</small>
+              <strong>{{ exam.start_datetime.strftime("%B %d, %Y") }}</strong><br>
+              <small class="text-muted">{{ exam.start_datetime.strftime("%I:%M %p") }}</small>
+            </div>
+            <div class="col-md-6">
+              <small class="text-muted d-block">Ends</small>
+              <strong>{{ exam.end_datetime.strftime("%B %d, %Y") }}</strong><br>
+              <small class="text-muted">{{ exam.end_datetime.strftime("%I:%M %p") }}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Instructions -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom">
+          <h6 class="mb-0"><i class="fas fa-list-check"></i> Important Instructions</h6>
+        </div>
+        <div class="card-body">
+          <div class="instruction-item mb-3 pb-3 border-bottom">
+            <div class="d-flex gap-3">
+              <div class="flex-shrink-0">
+                <div class="avatar-circle" style="background: #4e73df; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                  1
+                </div>
+              </div>
+              <div class="flex-grow-1">
+                <h6 class="mb-1"><i class="fas fa-ban"></i> One-Time Attempt</h6>
+                <p class="mb-0 small text-muted">This is a one-time attempt. Once you submit your exam, you cannot retake it or modify your answers. Make sure you're ready before starting.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="instruction-item mb-3 pb-3 border-bottom">
+            <div class="d-flex gap-3">
+              <div class="flex-shrink-0">
+                <div class="avatar-circle" style="background: #1cc88a; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                  2
+                </div>
+              </div>
+              <div class="flex-grow-1">
+                <h6 class="mb-1"><i class="fas fa-save"></i> Auto-Save Enabled</h6>
+                <p class="mb-0 small text-muted">Your answers will be automatically saved as you select them. You can review your answers before final submission.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="instruction-item mb-3 pb-3 border-bottom">
+            <div class="d-flex gap-3">
+              <div class="flex-shrink-0">
+                <div class="avatar-circle" style="background: #f6c23e; color: #333; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                  3
+                </div>
+              </div>
+              <div class="flex-grow-1">
+                <h6 class="mb-1"><i class="fas fa-wifi"></i> Internet Connection Required</h6>
+                <p class="mb-0 small text-muted">Ensure you have a stable internet connection before starting. Poor connectivity may interrupt your exam.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="instruction-item">
+            <div class="d-flex gap-3">
+              <div class="flex-shrink-0">
+                <div class="avatar-circle" style="background: #36b9cc; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                  4
+                </div>
+              </div>
+              <div class="flex-grow-1">
+                <h6 class="mb-1"><i class="fas fa-hourglass-end"></i> Manage Your Time</h6>
+                <p class="mb-0 small text-muted">You have exactly {{ exam.duration_minutes }} minutes. A countdown timer will be displayed during the exam. Plan your time wisely.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Set Selection & Action -->
+    <div class="col-lg-4">
+      
+      <!-- Selected Set or Set Selection -->
+      {% if can_attempt %}
+        {% if preview_set %}
+          <!-- Set Preview Card -->
+          <div class="card border-0 shadow-lg mb-4" style="border-left: 4px solid #1cc88a;">
+            <div class="card-header bg-light border-bottom">
+              <h6 class="mb-0"><i class="fas fa-check-circle text-success"></i> Selected Set</h6>
+            </div>
+            <div class="card-body">
+              <h5 class="text-primary mb-3">{{ preview_set.name }}</h5>
+              
+              {% if preview_set.description %}
+                <p class="small text-muted mb-3">{{ preview_set.description }}</p>
+              {% endif %}
+
+              <div class="mb-3">
+                <small class="text-muted d-block mb-1">Questions</small>
+                <h6 class="mb-0">
+                  {% if preview_set.total_questions %}
+                    {{ preview_set.total_questions }} questions
+                  {% else %}
+                    TBD
+                  {% endif %}
+                </h6>
+              </div>
+
+              {% if preview_set.max_score %}
+                <div class="mb-3">
+                  <small class="text-muted d-block mb-1">Total Marks</small>
+                  <h6 class="mb-0">{{ preview_set.max_score }} points</h6>
+                </div>
+              {% endif %}
+
+              <div class="alert alert-success alert-sm mb-0" role="alert">
+                <small>
+                  <i class="fas fa-check-circle"></i> You're ready to begin this exam set.
+                </small>
+              </div>
+            </div>
+          </div>
+        {% elif exam.assignment_mode == 'choice' %}
+          <!-- Set Selection Required -->
+          <div class="card border-0 shadow-lg mb-4 border-warning">
+            <div class="card-header bg-warning text-dark border-bottom">
+              <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Choose a Set First</h6>
+            </div>
+            <div class="card-body">
+              <p class="small mb-3">This exam requires you to select a question set before starting. You cannot proceed without choosing.</p>
+              <a href="{{ url_for('exam.select_exam_set', exam_id=exam.id) }}" class="btn btn-warning w-100">
+                <i class="fas fa-hand-pointer"></i> Choose Set Now
+              </a>
+            </div>
+          </div>
+        {% else %}
+          <!-- Automatic Set Assignment -->
+          <div class="card border-0 shadow-lg mb-4 border-info">
+            <div class="card-header bg-info text-white border-bottom">
+              <h6 class="mb-0"><i class="fas fa-random"></i> Random Set Assignment</h6>
+            </div>
+            <div class="card-body">
+              <p class="small mb-3">A question set will be randomly assigned to you when you start the exam. You cannot choose which set you get.</p>
+              <div class="alert alert-light alert-sm" role="alert">
+                <small><i class="fas fa-info-circle"></i> All sets have the same difficulty level.</small>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
+        <!-- Start Exam Button -->
+        {% if can_attempt and (preview_set or exam.assignment_mode != 'choice') %}
+          <form method="POST" id="startExamForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-success btn-lg w-100 mb-2">
+              <i class="fas fa-play-circle"></i> Start Exam
+            </button>
+            <a href="{{ url_for('exam.exams') }}" class="btn btn-outline-secondary w-100">
+              <i class="fas fa-times"></i> Cancel
+            </a>
+          </form>
+        {% endif %}
+
+      {% else %}
+        <!-- Already Attempted -->
+        <div class="card border-0 shadow-lg border-danger">
+          <div class="card-header bg-danger text-white border-bottom">
+            <h6 class="mb-0"><i class="fas fa-check-double"></i> Exam Completed</h6>
+          </div>
+          <div class="card-body text-center py-4">
+            <div style="font-size: 3rem; color: #28a745; margin-bottom: 1rem;">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <p class="text-muted mb-3">You have already taken this exam. You cannot attempt it again.</p>
+            <a href="{{ url_for('exam.exams') }}" class="btn btn-secondary">
+              <i class="fas fa-arrow-left"></i> Back to Exams
+            </a>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Quick Checklist -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light border-bottom">
+          <h6 class="mb-0"><i class="fas fa-clipboard-list"></i> Before You Start</h6>
+        </div>
+        <div class="card-body">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="check1">
+            <label class="form-check-label small" for="check1">
+              I have a stable internet connection
+            </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="check2">
+            <label class="form-check-label small" for="check2">
+              I'm in a quiet, distraction-free environment
+            </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="check3">
+            <label class="form-check-label small" for="check3">
+              I've read all the instructions above
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="check4">
+            <label class="form-check-label small" for="check4">
+              I understand this is a one-time attempt
+            </label>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- Styles -->
+<style>
+  .avatar-circle {
+    font-size: 1rem;
+  }
+
+  .instruction-item {
+    transition: background-color 0.2s ease;
+  }
+
+  .instruction-item:hover {
+    background-color: #f8f9fa;
+    padding: 0.75rem;
+    margin: -0.75rem -0.75rem 0.75rem -0.75rem;
+    border-radius: 0.375rem;
+  }
+
+  .alert-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    margin-bottom: 0;
+  }
+
+  .border-white-50 {
+    border-color: rgba(255, 255, 255, 0.5) !important;
+  }
+
+  .card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+  }
+
+  #startExamForm button:hover {
+    transform: scale(1.02);
+  }
+
+  @media (max-width: 992px) {
+    .instruction-item {
+      margin-bottom: 1rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .btn-lg {
+      padding: 0.65rem 1rem;
+      font-size: 0.95rem;
+    }
+
+    .avatar-circle {
+      width: 35px !important;
+      height: 35px !important;
+      font-size: 0.9rem;
+    }
+
+    .row {
+      margin-right: -0.5rem;
+      margin-left: -0.5rem;
+    }
+
+    .col-lg-8,
+    .col-lg-4 {
+      padding-right: 0.5rem;
+      padding-left: 0.5rem;
+    }
+  }
+</style>
+
+<!-- JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const startBtn = document.querySelector('#startExamForm button[type="submit"]');
+  
+  if (startBtn) {
+    const form = document.getElementById('startExamForm');
+    form.addEventListener('submit', function () {
+      startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting Exam...';
+      startBtn.disabled = true;
+    });
+  }
+
+  // Optional: Prevent accidental navigation
+  window.addEventListener('beforeunload', function (e) {
+    const checks = document.querySelectorAll('.form-check-input:checked').length;
+    if (checks < 4 && !document.getElementById('startExamForm').submitted) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+});
+</script>
+
+{% endblock %}

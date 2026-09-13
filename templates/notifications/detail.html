@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}{{ notification.title }} | Notifications{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Back Button -->
+            <div class="mb-3">
+                <a href="{{ url_for('notifications.list_notifications') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Notifications
+                </a>
+            </div>
+
+            <!-- Notification Detail -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h4 class="mb-0">{{ notification.title }}</h4>
+                        </div>
+                        <div class="col-auto">
+                            <span class="badge" style="background-color: {% if notification.priority == 'high' %}#dc3545{% elif notification.priority == 'normal' %}#0d6efd{% else %}#6c757d{% endif %};">
+                                {{ notification.priority | upper }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <!-- Notification Info -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <small class="text-muted">Type</small>
+                            <div>
+                                <span class="badge bg-info">{{ notification.type }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <small class="text-muted">Received</small>
+                            <div>{{ notification.created_at.strftime('%d %b %Y, %I:%M %p') }}</div>
+                        </div>
+                    </div>
+
+                    {% if notification.sender_name %}
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <small class="text-muted">From</small>
+                                <div>{{ notification.sender_name }}</div>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <small class="text-muted">Status</small>
+                                <div>
+                                    {% if recipient.is_read %}
+                                        <span class="badge bg-success">Read</span>
+                                        {% if recipient.read_at %}
+                                            <br><small class="text-muted">{{ recipient.read_at.strftime('%d %b %Y, %I:%M %p') }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-primary">Unread</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <hr>
+
+                    <!-- Message Content -->
+                    <div class="mt-4 mb-4">
+                        <div class="alert alert-light border">
+                            {{ notification.message | replace('\n', '<br>') | safe }}
+                        </div>
+                    </div>
+
+                    <!-- Related Item Link -->
+                    {% if notification.related_type and notification.related_id %}
+                        <hr>
+                        <div class="mt-4">
+                            <a href="{% if notification.related_type == 'quiz' %}{{ url_for('vclass.quiz_instructions', quiz_id=notification.related_id) }}{% elif notification.related_type == 'assignment' %}{{ url_for('vclass.download_assignment', filename=notification.related_id) }}{% elif notification.related_type == 'exam' %}{{ url_for('vclass.exam', exam_id=notification.related_id) }}{% elif notification.related_type == 'course' %}/vclass/courses/{{ notification.related_id }}{% else %}#{% endif %}" class="btn btn-primary">
+                                <i class="fas fa-arrow-right"></i> View {{ notification.related_type | upper }}
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="card-footer bg-light">
+                    <div class="row">
+                        <div class="col">
+                            {% if not recipient.is_read %}
+                                <button class="btn btn-outline-success btn-sm" onclick="markAsRead()">
+                                    <i class="fas fa-check"></i> Mark as Read
+                                </button>
+                            {% endif %}
+                        </div>
+                        <div class="col text-end">
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteNotification()">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function markAsRead() {
+    fetch('{{ url_for("notifications.mark_read", notification_id=notification.id) }}', {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrfToken()}
+    }).then(() => {
+        location.reload();
+    });
+}
+
+function deleteNotification() {
+    if (!confirm('Delete this notification?')) return;
+    fetch('{{ url_for("notifications.delete_notification", notification_id=notification.id) }}', {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrfToken()}
+    }).then(() => {
+        window.location.href = '{{ url_for("notifications.list_notifications") }}';
+    });
+}
+
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+}
+</script>
+{% endblock %}

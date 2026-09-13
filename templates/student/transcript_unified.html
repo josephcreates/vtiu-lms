@@ -1,0 +1,174 @@
+{# Unified student transcript view - supports current, semester, and full modes #}
+{% extends "student/base_student.html" %}
+
+{% block title %}Transcript - {{ transcript.student_name if transcript else 'Student Portal' }}{% endblock %}
+
+{% block content %}
+<div class="container mt-1">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="mb-4">{% if mode == 'full' %}Full Academic Transcript{% else %}Semester Transcript{% endif %}</h1>
+
+            <!-- Navigation -->
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-body d-flex flex-wrap gap-2">
+                    <a href="{{ url_for('student_transcript.current_semester') }}" class="btn {% if mode == 'current' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        <i class="fas fa-file-alt"></i> Current Semester
+                    </a>
+                    <a href="{{ url_for('student_transcript.full_transcript') }}" class="btn {% if mode == 'full' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        <i class="fas fa-book-open"></i> Academic History
+                    </a>
+                </div>
+            </div>
+
+            {% if not transcript %}
+                <div class="alert alert-warning">No transcript data available.</div>
+            {% else %}
+
+                {% if mode == 'full' %}
+                    <!-- Full transcript: semesters summary -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white"><h5 class="mb-0">Semester Summary</h5></div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Academic Year</th>
+                                                <th>Semester</th>
+                                                <th class="text-center">Courses</th>
+                                                <th class="text-center">GPA</th>
+                                                <th class="text-center">Weighted GPA</th>
+                                                <th class="text-center">Credit Hours</th>
+                                                <th class="text-center">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for summary in transcript.semesters_summary %}
+                                            <tr>
+                                                <td><strong>{{ summary.academic_year|start_year }}</strong></td>
+                                                <td>Semester {{ summary.semester }}</td>
+                                                <td class="text-center">{{ summary.courses_count }}</td>
+                                                <td class="text-center">{{ "%.2f"|format(summary.gpa) }}</td>
+                                                <td class="text-center">{{ "%.2f"|format(summary.weighted_gpa) }}</td>
+                                                <td class="text-center">{{ summary.credit_hours }}</td>
+                                                <td class="text-center">
+                                                    <a href="{{ url_for('student_transcript.semester_specific', academic_year=summary.academic_year, semester=summary.semester) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Cumulative Statistics -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card text-center"><div class="card-body"><h5 class="card-title">Cumulative GPA</h5><p class="display-5">{{ "%.2f"|format(transcript.cumulative_gpa) }}</p></div></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center"><div class="card-body"><h5 class="card-title">Weighted GPA</h5><p class="display-5">{{ "%.2f"|format(transcript.cumulative_weighted_gpa) }}</p></div></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center"><div class="card-body"><h5 class="card-title">Total Credits</h5><p class="display-5">{{ transcript.total_credit_hours_attempted }}</p></div></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Download Options for Full Transcript -->
+                    <div class="card">
+                        <div class="card-header bg-success text-white"><h5 class="mb-0">Download Full Transcript</h5></div>
+                        <div class="card-body">
+                            <a href="{{ url_for('student_transcript.download_full_pdf') }}" 
+                               class="btn btn-primary">
+                                <i class="fas fa-file-pdf"></i> Download as PDF
+                            </a>
+                        </div>
+                    </div>
+
+                {% else %}
+                    <!-- Semester view: header + courses table -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Student ID:</strong> {{ transcript.student_id }}</p>
+                                    <p><strong>Name:</strong> {{ transcript.student_name }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Academic Year:</strong> {{ transcript.academic_year|start_year }}</p>
+                                    <p><strong>Semester:</strong> {{ transcript.semester }}</p>
+                                </div>
+                            </div>
+                            {% if transcript.is_released %}
+                                <span class="badge bg-success mt-3">Results Released</span>
+                            {% else %}
+                                <span class="badge bg-warning mt-3">Results Not Yet Released</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card text-center"><div class="card-body"><h5 class="card-title">GPA</h5><p class="display-5">{{ "%.2f"|format(transcript.semester_gpa) }}</p></div></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center"><div class="card-body"><h5 class="card-title">Weighted GPA</h5><p class="display-5">{{ "%.2f"|format(transcript.semester_weighted_gpa) }}</p></div></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center"><div class="card-body"><h5 class="card-title">Credit Hours</h5><p class="display-5">{{ transcript.total_credit_hours }}</p></div></div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white"><h5 class="mb-0">Course Results</h5></div>
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Course Code</th>
+                                        <th>Course Name</th>
+                                        <th class="text-center">Credits</th>
+                                        <th class="text-center">Final Score</th>
+                                        <th class="text-center">Grade</th>
+                                        <th class="text-center">Weights</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for course in transcript.courses %}
+                                    <tr>
+                                        <td><strong>{{ course.course_code }}</strong></td>
+                                        <td>{{ course.course_name }}</td>
+                                        <td class="text-center">{{ course.credit_hours }}</td>
+                                        <td class="text-center">{{ "%.2f"|format(course.final_score) }}</td>
+                                        <td class="text-center"><span class="badge {% if course.grade_letter in ['A','B'] %}bg-success{% elif course.grade_letter=='C' %}bg-warning{% else %}bg-danger{% endif %}">{{ course.grade_letter or 'N/A' }}</span></td>
+                                        <td class="text-center"><small class="text-muted">Q{{ course.quiz_weight|int }}% A{{ course.assignment_weight|int }}% E{{ course.exam_weight|int }}%</small></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Download Options -->
+                    <div class="card">
+                        <div class="card-header bg-success text-white"><h5 class="mb-0">Download Transcript</h5></div>
+                        <div class="card-body">
+                            <a href="{{ url_for('student_transcript.download_semester_pdf', academic_year=transcript.academic_year, semester=transcript.semester) }}" 
+                               class="btn btn-primary">
+                                <i class="fas fa-file-pdf"></i> Download as PDF
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

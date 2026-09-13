@@ -1,0 +1,411 @@
+{% extends "student/base_student.html" %}
+{% block content %}
+
+<div class="container-fluid py-1">
+  <!-- Page Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="fw-bold text-dark mb-1">Semester Results</h2>
+          {% set display_year = academic_year.split('/')[0].split('-')[0] if academic_year else '' %}
+          <p class="text-muted mb-0">
+            <span class="badge bg-info">{{ display_year }}</span>
+            <span class="badge bg-secondary">{{ semester }} Semester</span>
+          </p>
+        </div>
+        <div>
+          <button class="btn btn-outline-primary no-print" onclick="handlePrint()">
+            <i class="fas fa-print"></i> Print
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Summary Cards -->
+  <div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <p class="text-muted small mb-2">Total Courses</p>
+          <h3 class="fw-bold text-primary mb-0">{{ results|length }}</h3>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <p class="text-muted small mb-2">Total Credit Hours</p>
+          <h3 class="fw-bold text-success mb-0">
+            {% set total_credits = results|map(attribute='credit_hours')|sum %}
+            {{ total_credits }}
+          </h3>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <p class="text-muted small mb-2">Average Score</p>
+          <h3 class="fw-bold text-warning mb-0">
+            {% set avg_score = (results|map(attribute='score')|sum / (results|length or 1))|round(1) %}
+            {{ avg_score }}%
+          </h3>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <p class="text-muted small mb-2">GPA</p>
+          <h3 class="fw-bold text-danger mb-0">
+            {% set total_points = results|map(attribute='points')|sum %}
+            {% set gpa = (total_points / (total_credits or 1))|round(2) %}
+            {{ gpa }}
+          </h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Table -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light border-bottom">
+          <h5 class="mb-0 fw-bold">Course Results</h5>
+        </div>
+        <div class="card-body p-0">
+          {% if results|length > 0 %}
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="text-muted">Course Code</th>
+                    <th class="text-muted">Course Name</th>
+                    <th class="text-muted text-center">Score</th>
+                    <th class="text-muted text-center">Grade</th>
+                    <th class="text-muted text-center">Credit Hours</th>
+                    <th class="text-muted text-center">Grade Points</th>
+                    <th class="text-muted text-center">Weights</th>
+                    <th class="text-muted text-center">Remark</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in results %}
+                  <tr>
+                    <td>
+                      <span class="badge bg-light text-dark">{{ r.course_code|default('N/A') }}</span>
+                    </td>
+                    <td>
+                      <strong>{{ r.course_name|default('') }}</strong>
+                      <br>
+                      <small class="text-muted">{{ (r.course_description|default(''))[:50] }}</small>
+                    </td>
+                    <td class="text-center">
+                      <h5 class="mb-0">
+                        <span class="fw-bold {% if r.score >= 70 %}text-success{% elif r.score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                          {{ r.score|round(1) }}%
+                        </span>
+                      </h5>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge {% if r.grade in ['A', 'A+'] %}bg-success{% elif r.grade in ['B+', 'B'] %}bg-info{% elif r.grade in ['C+', 'C'] %}bg-warning{% elif r.grade == 'D' %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
+                        {{ r.grade }}
+                      </span>
+                    </td>
+                    <td class="text-center fw-bold">{{ r.credit_hours }}</td>
+                    <td class="text-center fw-bold text-primary">{{ r.points|round(2) }}</td>
+                    <td class="text-center">
+                      <small class="text-muted" title="Quiz: {{ r.quiz_weight }}% | Assignment: {{ r.assignment_weight }}% | Exam: {{ r.exam_weight }}%">
+                        Q{{ r.quiz_weight|int }}% A{{ r.assignment_weight|int }}% E{{ r.exam_weight|int }}%
+                      </small>
+                    </td>
+                    <td class="text-center">
+                      {% if r.score >= 70 %}
+                        <span class="badge bg-success"><i class="fas fa-check-circle"></i> Passed</span>
+                      {% elif r.score >= 50 %}
+                        <span class="badge bg-warning"><i class="fas fa-exclamation-circle"></i> At Risk</span>
+                      {% else %}
+                        <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Failed</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Summary Footer -->
+            <div class="border-top p-3 bg-light">
+              <div class="row">
+                <div class="col-md-6">
+                  <p class="mb-1">
+                    <strong>Total Grade Points:</strong>
+                    <span class="float-end text-primary fw-bold">{{ (results|map(attribute='points')|sum)|round(2) }}</span>
+                  </p>
+                  <p class="mb-0">
+                    <strong>Semester GPA:</strong>
+                    <span class="float-end fw-bold">{{ ((results|map(attribute='points')|sum) / (results|map(attribute='credit_hours')|sum or 1))|round(2) }}</span>
+                  </p>
+                </div>
+                <div class="col-md-6">
+                  <p class="mb-1">
+                    <strong>Passed Courses:</strong>
+                    <span class="float-end">
+                      <span class="badge bg-success">{{ results|selectattr('score', '>=', 70)|list|length }}</span>
+                    </span>
+                  </p>
+                  <p class="mb-0">
+                    <strong>Failed Courses:</strong>
+                    <span class="float-end">
+                      <span class="badge bg-danger">{{ results|selectattr('score', '<', 50)|list|length }}</span>
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+          {% else %}
+            <div class="p-5 text-center">
+              <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+              <p class="text-muted mb-0">No results available for this semester.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Info -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="alert alert-info border-0 d-flex align-items-center">
+        <i class="fas fa-info-circle me-2"></i>
+        <small>
+          Results are calculated according to each course's assessment scheme (weights vary by course).
+          Contact the Academic Affairs office if you have questions about your results.
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function handlePrint() {
+    // Set a print flag
+    document.body.classList.add('printing');
+    
+    // Trigger print dialog
+    window.print();
+    
+    // Remove flag after print dialog closes
+    window.addEventListener('afterprint', function() {
+      document.body.classList.remove('printing');
+    });
+  }
+</script>
+
+<style>
+  .no-print {
+    display: print;
+  }
+
+  @media print {
+    /* Hide interactive elements */
+    .btn, .alert, .no-print {
+      display: none !important;
+    }
+
+    /* Print header */
+    .container-fluid {
+      padding: 0 !important;
+      max-width: 100% !important;
+    }
+
+    body {
+      margin: 0;
+      padding: 10mm;
+      font-family: Arial, sans-serif;
+    }
+
+    /* Page styling */
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
+
+    /* Header styling */
+    .row.mb-4:first-child {
+      margin-bottom: 15mm !important;
+      page-break-after: avoid;
+    }
+
+    h2 {
+      font-size: 18pt !important;
+      margin-bottom: 5mm !important;
+      color: #000 !important;
+    }
+
+    /* Summary cards */
+    .row.mb-4 .card {
+      border: 1px solid #000 !important;
+      box-shadow: none !important;
+      page-break-inside: avoid;
+      margin-bottom: 3mm !important;
+    }
+
+    .card-body {
+      padding: 8mm !important;
+    }
+
+    .card-body h3 {
+      font-size: 14pt !important;
+      color: #000 !important;
+    }
+
+    .card-body p {
+      font-size: 10pt !important;
+      color: #000 !important;
+      margin-bottom: 2mm !important;
+    }
+
+    .text-primary, .text-success, .text-warning, .text-danger {
+      color: #000 !important;
+    }
+
+    /* Table styling */
+    .table {
+      font-size: 10pt !important;
+      border-collapse: collapse !important;
+      width: 100% !important;
+      margin-bottom: 0 !important;
+    }
+
+    .table thead {
+      background-color: #f0f0f0 !important;
+      display: table-header-group;
+      page-break-after: avoid;
+    }
+
+    .table th {
+      background-color: #f0f0f0 !important;
+      color: #000 !important;
+      border: 1px solid #999 !important;
+      padding: 3mm !important;
+      font-weight: bold !important;
+      text-align: left !important;
+    }
+
+    .table td {
+      border: 1px solid #ccc !important;
+      padding: 3mm !important;
+      color: #000 !important;
+      page-break-inside: avoid;
+    }
+
+    .table tbody tr {
+      page-break-inside: avoid;
+    }
+
+    .table tbody tr:nth-child(odd) {
+      background-color: #fff !important;
+    }
+
+    .table tbody tr:hover {
+      background-color: #fff !important;
+    }
+
+    /* Badge styling */
+    .badge {
+      border: 1px solid #000 !important;
+      color: #000 !important;
+      background-color: #fff !important;
+      padding: 2mm !important;
+      margin-right: 2mm !important;
+    }
+
+    /* Summary footer */
+    .border-top {
+      border-top: 2px solid #000 !important;
+      background-color: #f0f0f0 !important;
+      page-break-before: avoid;
+      margin-top: 5mm !important;
+      padding: 5mm !important;
+    }
+
+    .border-top p {
+      font-size: 10pt !important;
+      margin-bottom: 3mm !important;
+      color: #000 !important;
+    }
+
+    .border-top strong {
+      color: #000 !important;
+    }
+
+    .float-end {
+      float: right !important;
+    }
+
+    /* Alert box styling */
+    .alert {
+      border: 1px solid #000 !important;
+      background-color: #fff !important;
+      color: #000 !important;
+      margin-top: 10mm !important;
+      padding: 5mm !important;
+    }
+
+    /* Card styling */
+    .card {
+      border: 1px solid #000 !important;
+      box-shadow: none !important;
+      page-break-inside: avoid;
+    }
+
+    .card-header {
+      background-color: #f0f0f0 !important;
+      border-bottom: 2px solid #000 !important;
+    }
+
+    .card-header h5 {
+      color: #000 !important;
+      font-size: 12pt !important;
+    }
+
+    /* Text colors */
+    .text-muted {
+      color: #666 !important;
+    }
+
+    /* Responsive table for print */
+    .table-responsive {
+      overflow: visible !important;
+    }
+
+    /* Print text alignment */
+    .text-center {
+      text-align: center !important;
+    }
+
+    /* Hide unnecessary columns or adjust */
+    @media print and (max-width: 1000px) {
+      .table th, .table td {
+        font-size: 9pt !important;
+        padding: 2mm !important;
+      }
+    }
+
+    /* Ensure images and icons don't print */
+    i.fas {
+      display: none !important;
+    }
+  }
+</style>
+
+{% endblock %}

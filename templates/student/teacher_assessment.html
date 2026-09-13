@@ -1,0 +1,382 @@
+{% extends "student/base_student.html" %} 
+{% block title %}Teacher Assessment{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+
+  <!-- STEP 1: SELECT TEACHER -->
+  {% if not selected_teacher %}
+    <!-- Progress Overview Card -->
+    {% if total_teachers %}
+    <div class="card border-0 bg-gradient-primary mb-4">
+      <div class="card-body text-white">
+        <div class="row align-items-center">
+          <div class="col-md-8">
+            <h5 class="mb-2">
+              <i class="bi bi-graph-up-arrow me-2"></i>
+              Assessment Progress
+            </h5>
+            <p class="mb-2 opacity-90">
+              You've completed <strong>{{ completed_count }}</strong> of <strong>{{ total_teachers }}</strong> assessments
+            </p>
+            <div class="progress" style="height: 8px;">
+              <div class="progress-bar bg-white" role="progressbar"
+                   style="width: {{ progress_percent }}%;"
+                   aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 text-md-end">
+            <h2 class="mb-0">{{ progress_percent }}%</h2>
+            <small class="opacity-90">Complete</small>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Teachers Selection Card -->
+    <div class="card border-0 shadow-lg">
+      <div class="card-header bg-white border-0 pt-4 pb-3">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h4 class="mb-1 text-primary">
+              <i class="bi bi-people-fill me-2"></i>
+              Rate Your Teachers
+            </h4>
+            <p class="text-muted mb-0">Select a teacher to provide your feedback</p>
+          </div>
+          {% if completed_count == total_teachers %}
+            <span class="badge bg-success-subtle text-success px-3 py-2">
+              <i class="bi bi-check-circle-fill me-1"></i>
+              All Done!
+            </span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Instructor</th>
+                <th>Classes</th>
+                <th>Status</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for teacher, courses in teachers %}
+              <tr class="{% if teacher.user_id in assessed_teacher_ids %}bg-light bg-opacity-50{% endif %}">
+                <td>
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="position-relative">
+                      <img src="{{ teacher.profile_picture_url }}" class="rounded-circle border-2 border-white shadow-sm" width="48" height="48">
+                      {% if teacher.user_id in assessed_teacher_ids %}
+                        <span class="position-absolute top-0 end-0 bg-success rounded-circle p-1 border border-white">
+                          <i class="bi bi-check-fill text-white" style="font-size: 0.5rem;"></i>
+                        </span>
+                      {% endif %}
+                    </div>
+                    <div>
+                      <div class="fw-semibold">{{ teacher.full_name }}</div>
+                      <small class="text-muted">{{ teacher.user_id }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark px-3 py-2">{{ courses }}</span>
+                </td>
+                <td>
+                  {% if teacher.user_id in assessed_teacher_ids %}
+                    <span class="badge bg-success-subtle text-success px-3 py-2">
+                      <i class="bi bi-check-circle me-1"></i>
+                      Completed
+                    </span>
+                  {% else %}
+                    <span class="badge bg-warning-subtle text-warning px-3 py-2">
+                      <i class="bi bi-clock me-1"></i>
+                      Pending
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {% if teacher.user_id in assessed_teacher_ids %}
+                  <button class="btn btn-sm btn-outline-success" disabled>
+                    <i class="bi bi-check-circle"></i> Done
+                  </button>
+                  {% else %}
+                  <a href="{{ url_for('student.teacher_assessment', teacher=teacher.user_id) }}" 
+                     class="btn btn-sm btn-primary">
+                    <i class="bi bi-star-fill me-1"></i>
+                    Rate Now
+                  </a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- STEP 2: ASSESSMENT FORM -->
+  {% if selected_teacher %}
+  <div class="card border-0 shadow-lg">
+    <!-- Teacher Header -->
+    <div class="card-header bg-gradient-primary text-white border-0">
+      <div class="row align-items-center">
+        <div class="col-md-8">
+          <div class="d-flex align-items-center gap-3">
+            <img src="{{ selected_teacher.profile_picture_url }}" class="rounded-circle border-3 border-white shadow" width="56" height="56">
+            <div>
+              <h4 class="mb-1">{{ selected_teacher.full_name }}</h4>
+              <p class="mb-0 opacity-90">{{ selected_teacher.user_id }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 text-md-end">
+          <a href="{{ url_for('student.teacher_assessment') }}" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back to List
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <form method="POST" id="assessmentForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="teacher_id" value="{{ selected_teacher.user_id }}">
+      
+      <div class="card-body p-4">
+        <!-- Part A: Teacher Behavior -->
+        <div class="assessment-section mb-4">
+          <div class="section-header mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="section-icon bg-success-subtle text-success rounded-circle p-2">
+                <i class="bi bi-person-heart"></i>
+              </div>
+              <h5 class="mb-0 text-success">Part A: Teacher-Student Interaction</h5>
+            </div>
+            <p class="text-muted mb-0">How well does the teacher connect with and support students?</p>
+          </div>
+
+          <div class="questions-container">
+            {% for q in questions_behavior %}
+            <div class="question-card bg-light rounded-3 p-3 mb-3">
+              <label class="form-label fw-semibold">{{ q.question }}</label>
+              <div class="rating-options">
+                {% set ratings = [
+                    (1, 'Very Poor', 'bi-emoji-frown', 'danger'),
+                    (2, 'Poor', 'bi-emoji-frown', 'warning'),
+                    (3, 'Average', 'bi-emoji-neutral', 'info'),
+                    (4, 'Good', 'bi-emoji-smile', 'primary'),
+                    (5, 'Excellent', 'bi-emoji-heart-eyes', 'success')
+                ] %}
+
+                <div class="row g-2">
+                  {% for value, label, icon, color in ratings %}
+                  <div class="col">
+                    <div class="form-check custom-radio">
+                      <input class="form-check-input" type="radio" name="q_{{ q.id }}" value="{{ value }}" id="q_{{ q.id }}_{{ value }}" required>
+                      <label class="form-check-label" for="q_{{ q.id }}_{{ value }}">
+                        <div class="radio-card text-center p-2 rounded-2 border border-2 border-transparent">
+                          <i class="bi {{ icon }} d-block mb-1 text-{{ color }}"></i>
+                          <small class="d-block">{{ label }}</small>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Part B: Student Response -->
+        <div class="assessment-section mb-4">
+          <div class="section-header mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="section-icon bg-info-subtle text-info rounded-circle p-2">
+                <i class="bi bi-mortarboard"></i>
+              </div>
+              <h5 class="mb-0 text-info">Part B: Learning Experience</h5>
+            </div>
+            <p class="text-muted mb-0">How do you feel about the learning experience with this teacher?</p>
+          </div>
+
+          <div class="questions-container">
+            {% for q in questions_response %}
+            <div class="question-card bg-light rounded-3 p-3 mb-3">
+              <label class="form-label fw-semibold">{{ q.question }}</label>
+              <div class="rating-options">
+                {% set ratings = [
+                    (1, 'Very Poor', 'bi-emoji-frown', 'danger'),
+                    (2, 'Poor', 'bi-emoji-frown', 'warning'),
+                    (3, 'Average', 'bi-emoji-neutral', 'info'),
+                    (4, 'Good', 'bi-emoji-smile', 'primary'),
+                    (5, 'Excellent', 'bi-emoji-heart-eyes', 'success')
+                ] %}
+
+                <div class="row g-2">
+                  {% for value, label, icon, color in ratings %}
+                  <div class="col">
+                    <div class="form-check custom-radio">
+                      <input class="form-check-input" type="radio" name="q_{{ q.id }}" value="{{ value }}" id="q_{{ q.id }}_{{ value }}" required>
+                      <label class="form-check-label" for="q_{{ q.id }}_{{ value }}">
+                        <div class="radio-card text-center p-2 rounded-2 border border-2 border-transparent">
+                          <i class="bi {{ icon }} d-block mb-1 text-{{ color }}"></i>
+                          <small class="d-block">{{ label }}</small>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Section -->
+      <div class="card-footer bg-light border-0 p-4">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="text-muted small">
+            <i class="bi bi-info-circle me-1"></i>
+            Your feedback helps improve teaching quality
+          </div>
+          <div class="btn-group">
+            <a href="{{ url_for('student.teacher_assessment') }}" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle me-1"></i> Cancel
+            </a>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-send-fill me-1"></i> Submit Assessment
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+
+<style>
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.section-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-radio {
+  position: relative;
+}
+
+.custom-radio .form-check-input {
+  position: absolute;
+  opacity: 0;
+}
+
+.custom-radio .form-check-label {
+  width: 100%;
+  cursor: pointer;
+}
+
+.custom-radio .form-check-input:checked + .form-check-label .radio-card {
+  border-color: var(--bs-primary);
+  background-color: var(--bs-primary-bg-subtle);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.custom-radio .form-check-input:hover + .form-check-label .radio-card {
+  border-color: var(--bs-primary-border-subtle);
+  transform: translateY(-1px);
+}
+
+.radio-card {
+  transition: all 0.2s ease;
+}
+
+.question-card {
+  transition: all 0.2s ease;
+}
+
+.question-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.assessment-section {
+  position: relative;
+}
+
+.assessment-section::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 40px;
+  bottom: 20px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--bs-success), var(--bs-info));
+  opacity: 0.1;
+}
+
+@media (max-width: 768px) {
+  .assessment-section::before {
+    display: none;
+  }
+  
+  .row.g-2 .col {
+    flex: 0 0 20%;
+    max-width: 20%;
+  }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Add smooth scroll behavior
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+      e.preventDefault();
+      document.querySelector(this.getAttribute('href')).scrollIntoView({
+        behavior: 'smooth'
+      });
+    });
+  });
+
+  // Form validation feedback
+  const form = document.getElementById('assessmentForm');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      const requiredRadios = form.querySelectorAll('input[type="radio"][required]');
+      let allAnswered = true;
+      
+      requiredRadios.forEach(radio => {
+        const name = radio.name;
+        if (!form.querySelector(`input[name="${name}"]:checked`)) {
+          allAnswered = false;
+        }
+      });
+      
+      if (!allAnswered) {
+        e.preventDefault();
+        alert('Please answer all questions before submitting.');
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

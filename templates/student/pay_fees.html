@@ -1,0 +1,453 @@
+{% extends 'student/base_student.html' %}
+{% block title %}Pay Fees{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <!-- Filter Bar -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <form method="get" class="row g-3" id="filtersForm" novalidate>
+        <div class="col-md-4">
+          <label for="year" class="form-label">Academic Year</label>
+          <input id="year" class="form-control" value="{{ year or 'Not configured' }}" readonly>
+
+        </div>
+
+        <div class="col-md-4">
+          <label for="semester" class="form-label">Semester</label>
+          <select id="semester" name="semester" class="form-select" required>
+            <option value="">-- Select --</option>
+            <option value="First" {% if semester == 'First' %}selected{% endif %}>First</option>
+            <option value="Second" {% if semester == 'Second' %}selected{% endif %}>Second</option>
+          </select>
+        </div>
+
+        <div class="col-md-4 d-grid align-items-end">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search me-1"></i> Load
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# server-side computed values #}
+  {% set remaining = (total_fee - current_balance) if (total_fee is not none and current_balance is not none) else 0 %}
+  {% set pct = 0 %}
+  {% if total_fee and total_fee > 0 %}
+    {% set pct = ((current_balance / total_fee) * 100) | round(1) %}
+    {% if pct > 100 %}{% set pct = 100 %}{% endif %}
+  {% endif %}
+
+  <div class="row g-3">
+    <!-- Left Column: Fees & Payment Form -->
+    <div class="col-lg-7">
+      <div class="card shadow mb-3">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <div>
+            <i class="fas fa-money-check-alt me-2"></i>
+            Fee Details
+            <small class="text-light ms-2">— {{ year or '—' }} | {{ semester or '—' }} Semester</small>
+          </div>
+          <div>
+            <small class="text-light">Student: {{ current_user.full_name }}</small>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <!-- Flash Messages -->
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+
+          <!-- Summary / Progress -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between">
+              <div><strong>Total Fee:</strong></div>
+              <div>GHS {{ "%.2f"|format(total_fee or 0) }}</div>
+            </div>
+            <div class="d-flex justify-content-between">
+              <div><strong>Approved Payments:</strong></div>
+              <div class="text-success">GHS {{ "%.2f"|format(current_balance or 0) }}</div>
+            </div>
+            {% if pending_balance and pending_balance > 0 %}
+              <div class="d-flex justify-content-between">
+                <div><strong>Pending Approval:</strong></div>
+                <div class="text-warning">GHS {{ "%.2f"|format(pending_balance) }}</div>
+              </div>
+            {% endif %}
+            <div class="d-flex justify-content-between fw-bold mt-2">
+              <div>Outstanding:</div>
+              {% if remaining > 0 %}
+                <div class="text-danger">GHS {{ "%.2f"|format(remaining) }}</div>
+              {% else %}
+                <div class="text-success">All fees covered</div>
+              {% endif %}
+            </div>
+
+            <div class="mt-3">
+  <div class="progress" style="height: 18px;">
+    <!-- data-paid holds the percent from Jinja, but CSS block remains plain -->
+    <div class="progress-bar" role="progressbar"
+         data-paid="{{ pct|default(0) }}"
+         aria-valuemin="0" aria-valuemax="100">
+      {{ pct|default(0) }}%
+    </div>
+  </div>
+  <small class="text-muted">Paid vs Total</small>
+</div>
+
+          </div>
+
+          <hr>
+
+          <!-- Assigned Fees list -->
+          <h6 class="mb-2">Assigned Fees</h6>
+          {% if assigned_fees and assigned_fees|length > 0 %}
+            <div class="list-group mb-3">
+              {% for fee in assigned_fees %}
+                <div class="list-group-item d-flex justify-content-between align-items-start">
+                  <div>
+                    <div class="fw-bold">{{ fee.title }}</div>
+                    <small class="text-muted">{{ fee.description or '' }}</small>
+                    <div><small class="text-muted">Due: {{ fee.due_date.strftime('%d %b %Y') if fee.due_date else '—' }}</small></div>
+                  </div>
+                  <div class="text-end">
+                    <div class="fw-bold">GHS {{ "%.2f"|format(fee.amount) }}</div>
+                    <small class="text-muted">Type: {{ fee.fee_type or '—' }}</small>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="alert alert-info">No assigned fees for the selected period.</div>
+          {% endif %}
+
+          <!-- Submit Payment -->
+          <!-- Level-based payment notice -->
+          <div class="alert {% if student_level == 100 %}alert-warning{% else %}alert-info{% endif %} mb-3" role="alert">
+            <strong>Level {{ student_level }} Student — </strong>
+            {% if student_level == 100 %}
+              <i class="fas fa-exclamation-circle me-2"></i>Full payment is required. Installments are not allowed for Level 100 students.
+            {% else %}
+              <i class="fas fa-info-circle me-2"></i>You can pay in full or in installments.
+            {% endif %}
+          </div>
+
+          <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <div><i class="fas fa-credit-card me-2"></i>Submit Payment</div>
+              <div>
+                <small class="text-muted">Max allowed:
+                  <strong>GHS {{ "%.2f"|format(remaining if remaining>0 else 0) }}</strong>
+                </small>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <form id="paymentForm" method="post" enctype="multipart/form-data" action="{{ url_for('student.pay_fees') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="year" id="yearHidden" value="{{ year or '' }}">
+                <input type="hidden" name="semester" id="semesterHidden" value="{{ semester or '' }}">
+                <input type="hidden" id="remainingValue" value="{{ "%.2f"|format(remaining if remaining>0 else 0) }}">
+                <input type="hidden" id="allowInstallments" value="{{ '1' if allow_installments else '0' }}">
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="amountInput" class="form-label">Amount (GHS)</label>
+                    <input type="number"
+                      step="0.01"
+                      min="0.01"
+                      id="amountInput"
+                      name="amount"
+                      class="form-control"
+                      required
+                      aria-describedby="amountHelp"
+                      {% if not allow_installments %} 
+                        value="{{ "%.2f"|format(max_allowed_amount) }}" 
+                        readonly
+                      {% else %}
+                        placeholder="Enter amount up to GHS {{ "%.2f"|format(max_allowed_amount) }}"
+                      {% endif %}>
+                <div id="amountHelp" class="form-text text-muted">
+                  {% if allow_installments %}
+                    Enter an amount up to the outstanding balance (installments allowed).
+                  {% else %}
+                    Full payment required: GHS {{ "%.2f"|format(max_allowed_amount) }}
+                  {% endif %}
+                </div>
+                <div class="invalid-feedback" id="amountFeedback"></div>
+              </div>
+
+                  <div class="col-md-6">
+                    <label for="method" class="form-label">Payment Method</label>
+                    <select id="method" name="method" class="form-select" required>
+                      <option value="">-- Select method --</option>
+                      <option value="paystack">Paystack (Online)</option>
+                      <option value="mobile_money">Mobile Money</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="cash">Cash</option>
+                    </select>
+                  </div>
+
+                  <div class="col-12">
+                    <label for="descriptionInput" class="form-label">Description</label>
+                    <input id="descriptionInput" name="description" class="form-control" 
+                      {% if student_level == 100 %}
+                        placeholder="E.g. Full payment - Level 100" 
+                      {% else %}
+                        placeholder="E.g. Term fee - installment 1" 
+                      {% endif %}
+                      maxlength="200" required>
+                    <small class="form-text text-muted">
+                      {% if student_level == 100 %}
+                        Required: Full payment of GHS {{ "%.2f"|format(max_allowed_amount) }}
+                      {% else %}
+                        Optional: Specify if this is a full payment or installment number
+                      {% endif %}
+                    </small>
+                  </div>
+
+                  <div class="col-md-8">
+                    <label for="proofInput" class="form-label">Upload Proof (image/pdf) — max 5MB</label>
+                    <input type="file" id="proofInput" name="proof" class="form-control" accept="image/*,application/pdf">
+                    <div class="form-text text-muted">Allowed: JPG, PNG, PDF. Max size 5MB.</div>
+                    <div id="proofPreview" class="mt-2"></div>
+                  </div>
+
+                  <div class="col-md-4 d-grid align-self-end">
+                    <button type="submit" id="submitBtn" class="btn btn-success" {% if remaining <= 0 or not assigned_fees %}disabled{% endif %}>
+                      <i class="fas fa-paper-plane me-1"></i> Submit Payment
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Info + Payment History -->
+<div class="col-lg-5">
+  <!-- Fees Payment Info -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-header bg-info text-white">
+      <strong>Fees Payment Information</strong>
+    </div>
+    <div class="card-body">
+      <p class="mb-1">Ensure your payments are made before the semester deadlines to avoid penalties.</p>
+      <p class="mb-0">You can pay in full or in installments. Upload proof of payment if using mobile money or bank transfer. All pending payments require admin approval.</p>
+      <small class="text-muted">Note: Only approved payments will reflect in your balance.</small>
+    </div>
+  </div>
+
+  <!-- Payment History -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-light"><strong>Payment History</strong></div>
+    <div class="card-body p-0">
+      {% if transactions %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th class="text-end">Amount (GHS)</th>
+                <th>Status</th>
+                <th>Receipt</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for txn in transactions %}
+              <tr>
+                <td>{{ txn.timestamp.strftime('%d %b %Y') }}</td>
+                <td>{{ txn.description }}</td>
+                <td class="text-end">{{ "%.2f"|format(txn.amount) }}</td>
+                <td>
+                  {% if txn.is_approved %}
+                    <span class="badge bg-success">Approved</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if txn.is_approved %}
+                    <a href="{{ url_for('student.download_receipt', txn_id=txn.id) }}" class="btn btn-sm btn-outline-secondary">Download</a>
+                  {% else %}
+                    <span class="text-muted small">N/A</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-3 text-muted">No payment history for this period.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+  </div>
+</div>
+
+<!-- JS: validation & file preview -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const yearSelect = document.getElementById('year');
+  const semesterSelect = document.getElementById('semester');
+  const yearHidden = document.getElementById('yearHidden');
+  const semesterHidden = document.getElementById('semesterHidden');
+  const amountInput = document.getElementById('amountInput');
+  const remainingValueEl = document.getElementById('remainingValue');
+  const submitBtn = document.getElementById('submitBtn');
+  const amountFeedback = document.getElementById('amountFeedback');
+  const proofInput = document.getElementById('proofInput');
+  const proofPreview = document.getElementById('proofPreview');
+  const methodSelect = document.getElementById('method');
+
+  // Variables from hidden inputs
+  const remaining = parseFloat(remainingValueEl.value || '0');
+  const allowInstallments = document.getElementById('allowInstallments').value === '1';
+  const studentLevel = {{ student_level }};  // From Jinja template context
+
+  function syncHiddenFilters() {
+    yearHidden.value = yearSelect.value;
+    semesterHidden.value = semesterSelect.value;
+  }
+
+  function validateAmount() {
+    if (!allowInstallments) {
+      amountInput.value = remaining.toFixed(2);
+      amountInput.readOnly = true;
+      submitBtn.disabled = remaining <= 0;
+      amountInput.classList.remove('is-invalid');
+      amountFeedback.textContent = '';
+      return true;
+    }
+
+    const val = parseFloat(amountInput.value || '0');
+    
+    // Level 100: Enforce full payment
+    if (studentLevel === 100 && val !== remaining) {
+      submitBtn.disabled = true;
+      amountInput.classList.add('is-invalid');
+      amountFeedback.textContent = `Level 100 requires full payment of GHS ${remaining.toFixed(2)}. Partial payments are not allowed.`;
+      return false;
+    }
+
+    if (isNaN(val) || val <= 0 || val > remaining) {
+      submitBtn.disabled = true;
+      amountInput.classList.add('is-invalid');
+      amountFeedback.textContent = val > remaining
+        ? `Amount exceeds outstanding balance (GHS ${remaining.toFixed(2)})`
+        : 'Enter a valid amount greater than 0.';
+      return false;
+    } else {
+      submitBtn.disabled = false;
+      amountInput.classList.remove('is-invalid');
+      amountFeedback.textContent = '';
+      return true;
+    }
+  }
+
+  if (proofInput) {
+    proofInput.addEventListener('change', function() {
+      proofPreview.innerHTML = '';
+      const file = proofInput.files[0];
+      if (!file) return;
+
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        proofPreview.innerHTML = '<div class="text-danger small">File too large (max 5MB)</div>';
+        submitBtn.disabled = true;
+        return;
+      }
+
+      if (file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = '180px';
+        img.classList.add('img-thumbnail');
+        const reader = new FileReader();
+        reader.onload = e => img.src = e.target.result;
+        reader.readAsDataURL(file);
+        proofPreview.appendChild(img);
+      } else if (file.type === 'application/pdf') {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(file);
+        a.target = '_blank';
+        a.innerText = file.name;
+        a.className = 'btn btn-sm btn-outline-secondary';
+        proofPreview.appendChild(a);
+      } else {
+        proofPreview.innerHTML = '<div class="small text-muted">Preview not available for this file type.</div>';
+      }
+    });
+  }
+
+  document.querySelectorAll('.progress-bar[data-paid]').forEach(bar => {
+    const pct = parseFloat(bar.dataset.paid) || 0;
+    bar.style.width = pct + '%';
+    bar.setAttribute('aria-valuenow', pct);
+    bar.textContent = pct.toFixed(1) + '%';
+  });
+
+  if (allowInstallments && amountInput) amountInput.addEventListener('input', validateAmount);
+
+  const form = document.getElementById('paymentForm');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      syncHiddenFilters();
+      if (!validateAmount()) {
+        e.preventDefault();
+        return;
+      }
+
+      if (methodSelect && methodSelect.value === 'paystack') {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Connecting to Paystack...';
+        fetch('{{ url_for("student.paystack_initialize") }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+          },
+          body: JSON.stringify({
+            amount: amountInput.value,
+            year: yearHidden.value,
+            semester: semesterHidden.value,
+            description: document.getElementById('descriptionInput').value
+          })
+        })
+        .then(response => response.json().then(data => ({ ok: response.ok, data })))
+        .then(result => {
+          if (!result.ok || !result.data.success) {
+            throw new Error(result.data.message || 'Paystack initialization failed.');
+          }
+          window.location.href = result.data.authorization_url;
+        })
+        .catch(error => {
+          alert(error.message);
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Submit Payment';
+        });
+      }
+    });
+  }
+
+  validateAmount();
+});
+</script>
+{% endblock %}
