@@ -1,0 +1,1250 @@
+{# templates/chat.html - Updated for programmes, levels, and courses #}
+{% extends "base_chat.html" %}
+{% block title %}Chat — LMS{% endblock %}
+
+{% block extra_head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+<!-- Emoji picker library for reactions -->
+<script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@3.0.3/dist/index.min.js"></script>
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Enhanced styles for animations -->
+<style>
+  * { transition: background-color 0.3s, color 0.3s; }
+  body.dark-mode { background: linear-gradient(135deg, #0f172a, #1a1f35); color: #e0e0e0; }
+  body.dark-mode .chat-container { background: linear-gradient(135deg, #0f172a, #1a1f35); }
+  .typing-indicator { display: none; font-style: italic; color: #888; animation: blink 1.5s infinite; }
+  @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+  .online-status { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; position: absolute; bottom: 0; right: 0; box-shadow: 0 0 6px rgba(34, 197, 94, 0.5); }
+  .offline-status { background: #ccc; box-shadow: none; }
+  .message-reactions { margin-top: 5px; }
+  .reaction-btn { font-size: 14px; margin: 0 2px; cursor: pointer; }
+  .file-preview { max-width: 200px; margin: 10px 0; border: 1px solid #ddd; padding: 5px; border-radius: 8px; }
+  
+  /* Smooth animations */
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  
+  .conv-item { animation: slideIn 0.3s ease; }
+  
+  /* Theme toggle button enhancement */
+  #themeToggle {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #fbbf24 !important;
+    font-size: 18px !important;
+    transition: all 0.3s ease !important;
+  }
+  
+  #themeToggle:hover {
+    background: rgba(251, 191, 36, 0.15) !important;
+    border-color: rgba(251, 191, 36, 0.3) !important;
+    transform: rotate(20deg) scale(1.05) !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container" id="chatContainer">
+  <!-- Mobile Status Bar (Android style) -->
+  <div class="mobile-status-bar" id="mobileStatusBar">LMS Chat</div>
+  
+  <!-- Mobile App Header (WhatsApp style) -->
+  <header class="mobile-app-header" id="mobileAppHeader">
+    <div>
+      <div class="mobile-header-title"><i class="fas fa-comments"></i> LMS Chat</div>
+      <div class="mobile-header-subtitle" id="headerStatus">Ready</div>
+    </div>
+    <div class="mobile-header-actions">
+      <button class="mobile-header-btn" id="mobileSearch" title="Search"><i class="fas fa-search"></i></button>
+      <button class="mobile-header-btn" id="mobileMenu" title="Menu"><i class="fas fa-ellipsis-v"></i></button>
+    </div>
+  </header>
+
+  <!-- Floating Action Button (WhatsApp style) -->
+  <button class="fab" id="fabBtn" title="New Chat"><i class="fas fa-comment-dots"></i></button>
+
+  <!-- Bottom Sheet Modal for new chat -->
+  <div class="bottom-sheet" id="bottomSheet">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-header"><i class="fas fa-comment-dots"></i> New Chat</div>
+    <div class="bottom-sheet-content">
+      <button class="bottom-sheet-option" id="bottomNewDM">
+        <i class="fas fa-user"></i>
+        <div>
+          <div style="font-weight: 600;">New Direct Message</div>
+          <div style="font-size: 12px; color: #9ca3af; margin-top: 2px;">Chat with a person</div>
+        </div>
+      </button>
+      <button class="bottom-sheet-option" id="bottomNewGroup">
+        <i class="fas fa-users"></i>
+        <div>
+          <div style="font-weight: 600;">New Group</div>
+          <div style="font-size: 12px; color: #9ca3af; margin-top: 2px;">Chat with multiple people</div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Theme toggle -->
+  <button id="themeToggle" class="icon-btn" title="Toggle Dark Mode" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">🌙</button>
+
+  <!-- Backdrop for mobile left panel -->
+  <div id="leftPanelBackdrop" class="left-panel-backdrop" style="display: none;"></div>
+
+  <!-- LEFT PANEL / CONVERSATIONS -->
+  <aside class="left-panel" role="region" aria-label="Conversations sidebar">
+    <div class="left-strip" aria-hidden="false" title="Quick actions">
+      <div class="spacer"></div>
+      <button id="newDMBtn" class="icon-btn" title="New Direct Message"><i class="fas fa-plus"></i></button>
+      <button id="newGroupBtn" class="icon-btn" title="New Group Chat"><i class="fas fa-users"></i></button>
+      <button id="refreshConvos" class="icon-btn" title="Refresh conversations"><i class="fas fa-sync-alt"></i></button>
+    </div>
+
+    <div class="left-main">
+      <header class="left-head">
+        <h5><i class="fas fa-comments"></i> Conversations</h5>
+        <input id="convoSearch" type="search" placeholder="🔍 Search conversations…" aria-label="Search conversations">
+      </header>
+
+      <!-- DM COMPOSER (overlay, hidden initially) -->
+      <div id="dmComposerWrapper" class="dm-composer-wrapper" style="display:none;">
+        <div id="dmStepZone" class="dm-step-zone">
+          <!-- Step 1: Select role -->
+          <div id="dmStepRole">
+            <div class="dm-step-label"><i class="fas fa-user-circle"></i> Step 1 · Select Role</div>
+            <div class="dm-step-actions">
+              <button class="btn btn-sm btn-outline-secondary dm-role-btn" data-role="student"><i class="fas fa-graduation-cap"></i> Student</button>
+              <button class="btn btn-sm btn-outline-secondary dm-role-btn" data-role="teacher"><i class="fas fa-chalkboard-user"></i> Teacher</button>
+              <button class="btn btn-sm btn-outline-secondary dm-role-btn" data-role="admin"><i class="fas fa-shield"></i> Admin</button>
+            </div>
+          </div>
+
+          <!-- Step 2: Select programme (for students/teachers when admin messaging them) -->
+          <div id="dmStepProgramme" style="display:none;">
+            <div class="dm-step-label"><i class="fas fa-book"></i> Step 2 · Select Programme</div>
+            <select id="dmProgrammeSelect">
+              <option value="">Choose programme</option>
+            </select>
+          </div>
+
+          <!-- Step 3: Select level (for students/teachers when admin messaging them) -->
+          <div id="dmStepLevel" style="display:none;">
+            <div class="dm-step-label"><i class="fas fa-layer-group"></i> Step 3 · Select Level</div>
+            <select id="dmLevelSelect">
+              <option value="">Choose level</option>
+            </select>
+          </div>
+
+          <!-- Step 2/4: Select person (step number varies based on if programme is needed) -->
+          <div id="dmStepUsers" style="display:none;">
+            <div class="dm-step-label dm-step-users-label"><i class="fas fa-users"></i> Step 4 · Select Person</div>
+            <div id="dmUserList" style="max-height: 300px; overflow-y: auto;"></div>
+          </div>
+
+          <div class="dm-composer-actions">
+            <button id="dm_cancel" class="btn btn-light btn-sm"><i class="fas fa-times"></i> Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONVERSATION LIST -->
+      <div id="conversationList" class="conversation-list" aria-live="polite">
+        <!-- Conversations loaded dynamically via JavaScript -->
+      </div>
+    </div>
+  </aside>
+
+  <section class="right-panel" role="region" aria-label="Messages area">
+    <header class="right-head" id="rightHead">
+      <button id="backToConversations" class="icon-btn" title="Back to Conversations" style="display: none;"><i class="fas fa-arrow-left"></i></button>
+      <div class="right-head-left">
+        <div id="rightAvatar" class="conv-avatar"></div>
+        <div>
+          <div class="title" id="rightTitle">💬 Select a conversation</div>
+          <div class="sub" id="rightSub">Open or create a new chat to begin</div>
+          <div id="groupMeta" style="display: none;"><span id="groupMemberCount">0 members</span></div>
+        </div>
+      </div>
+
+      <div id="generalMenuWrapper" class="right-head-menu">
+        <button id="menuBtn" title="Options"><i class="fas fa-ellipsis-v"></i></button>
+        <div id="menuDropdown" style="display: none; position: absolute; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 180px; overflow: hidden; top: 100%; right: 0; z-index: 1000;">
+          <button data-action="search" style="display: block; width: 100%; padding: 10px 16px; border: none; background: none; text-align: left; cursor: pointer; font-size: 14px;"><i class="fas fa-search"></i> Search</button>
+          <button data-action="add_members" style="display: block; width: 100%; padding: 10px 16px; border: none; background: none; text-align: left; cursor: pointer; font-size: 14px;"><i class="fas fa-user-plus"></i> Add Members</button>
+          <button data-action="mute" style="display: block; width: 100%; padding: 10px 16px; border: none; background: none; text-align: left; cursor: pointer; font-size: 14px;"><i class="fas fa-bell-slash"></i> Mute</button>
+          <button data-action="clear_chat" style="display: block; width: 100%; padding: 10px 16px; border: none; background: none; text-align: left; cursor: pointer; font-size: 14px;"><i class="fas fa-trash"></i> Clear Chat</button>
+          <button data-action="search_messages" style="display: block; width: 100%; padding: 10px 16px; border: none; background: none; text-align: left; cursor: pointer; font-size: 14px;"><i class="fas fa-search-plus"></i> Search Messages</button>
+        </div>
+      </div>
+
+      <div id="rightActions">
+        <button id="groupSettingsBtn">⚙ Group Settings</button>
+      </div>
+
+      <div id="callBtnWrapper">
+        <button id="startCallBtn" title="Start Call"><i class="fas fa-phone"></i> Call</button>
+      </div>
+    </header>
+
+    <!-- Message search bar -->
+    <div id="messageSearchBar" style="display:none; padding: 12px 16px; background: linear-gradient(180deg, #f9fafb, #f3f4f6); border-bottom: 1px solid #e5e7eb;">
+      <div style="display: flex; gap: 8px;">
+        <input id="messageSearchInput" type="search" placeholder="🔍 Search messages..." style="flex: 1; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; outline: none;">
+        <button id="closeMessageSearch" style="background: none; border: none; color: #9ca3af; font-size: 18px; cursor: pointer; padding: 4px 8px;"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+
+    <div id="messages" class="messages" aria-live="polite" tabindex="0">
+      <!-- Messages will be loaded here -->
+    </div>
+
+    <div class="input-area">
+      <div id="replyDiv" class="reply-div"></div>
+      <div id="filePreview" class="file-preview" style="display:none;"></div>
+      <div class="input-row">
+        <button id="emojiBtn" class="icon-btn left" title="Add Emoji"><i class="fas fa-smile"></i></button>
+        <button id="fileBtn" class="icon-btn left" title="Attach File"><i class="fas fa-paperclip"></i></button>
+        <input type="file" id="fileInput" style="display:none;" multiple>
+        <textarea id="messageInput" placeholder="Type a message" rows="1"></textarea>
+        <button id="sendDirect" class="btn btn-primary btn-send" title="Send or record">
+          <i id="sendIcon" class="fas fa-microphone"></i>
+        </button>
+      </div>
+    </div>
+  </section>
+</div><!-- HIDDEN INPUTS -->
+<input type="hidden" id="current-user-id" value="{{ current_user.public_id }}">
+<input type="hidden" id="current-user-role" value="{{ current_user.role }}">
+<input type="hidden" id="current-conversation-id" value="">
+<input type="hidden" id="current-conversation-type" value="">
+<input type="hidden" id="current-conversation-target" value="">
+
+<!-- AUDIO -->
+<audio id="ringtone" src="/static/sounds/ringtone.mp3" loop></audio>
+
+<!-- MESSAGE CONTEXT MENU (WhatsApp-style) -->
+<div id="msgContextMenu" class="whatsapp-context-menu" style="position:absolute; display:none; z-index:9999;">
+  <button data-action="reply" class="context-menu-btn"><i class="fas fa-reply"></i> Reply</button>
+  <button data-action="edit" class="context-menu-btn"><i class="fas fa-edit"></i> Edit</button>
+  <button data-action="copy" class="context-menu-btn"><i class="fas fa-copy"></i> Copy</button>
+  <button data-action="forward" class="context-menu-btn"><i class="fas fa-share"></i> Forward</button>
+  <button data-action="delete" class="context-menu-btn delete-btn"><i class="fas fa-trash"></i> Delete</button>
+  <button data-action="react" class="context-menu-btn"><i class="fas fa-smile"></i> React</button>
+</div>
+
+<!-- CONVERSATION CONTEXT MENU (WhatsApp-style) -->
+<div id="convContextMenu" class="whatsapp-context-menu" style="position:absolute; display:none; z-index:9999;">
+  <button data-action="view_info" class="context-menu-btn"><i class="fas fa-info-circle"></i> View Info</button>
+  <button data-action="mark_unread" class="context-menu-btn"><i class="fas fa-envelope"></i> Mark Unread</button>
+  <button data-action="mark_read" class="context-menu-btn" style="display:none;"><i class="fas fa-envelope-open"></i> Mark Read</button>
+  <button data-action="mute" class="context-menu-btn"><i class="fas fa-bell-slash"></i> Mute</button>
+  <button data-action="unmute" class="context-menu-btn" style="display:none;"><i class="fas fa-bell"></i> Unmute</button>
+  <button data-action="pin" class="context-menu-btn"><i class="fas fa-thumbtack"></i> Pin</button>
+  <button data-action="unpin" class="context-menu-btn" style="display:none;"><i class="fas fa-thumbtack"></i> Unpin</button>
+  <button data-action="archive" class="context-menu-btn"><i class="fas fa-archive"></i> Archive</button>
+  <button data-action="unarchive" class="context-menu-btn" style="display:none;"><i class="fas fa-inbox"></i> Unarchive</button>
+  <button data-action="block" class="context-menu-btn"><i class="fas fa-ban"></i> Block</button>
+  <button data-action="delete_convo" class="context-menu-btn delete-btn"><i class="fas fa-trash"></i> Delete</button>
+</div>
+
+<!-- CALL MODALS -->
+<div id="callModal" class="call-modal" style="display:none;">
+  <div class="call-backdrop"></div>
+
+  <!-- Incoming -->
+  <div id="incomingCallUI" class="call-panel" style="display:none;">
+    <img id="callerAvatar" class="call-avatar">
+    <h3 id="callerName">Incoming call</h3>
+    <div class="call-actions">
+      <button id="acceptCallBtn" class="btn btn-success">Accept</button>
+      <button id="rejectCallBtn" class="btn btn-danger">Reject</button>
+    </div>
+  </div>
+
+  <!-- Active / Ongoing -->
+  <div id="activeCallUI" class="call-panel" style="display:none;">
+    <img id="callerAvatar" class="call-avatar">
+    <h3 id="callerName">Call in progress</h3>
+    <div id="callVideoContainer"></div>
+    <div class="call-actions">
+      <button id="endCallBtn" class="btn btn-danger">End</button>
+      <button id="muteCallBtn" class="btn btn-secondary">Mute</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="msgActionModal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content">
+    <h5 id="modalTitle">Action</h5>
+    <textarea id="modalInput" rows="3" placeholder="Type here..."></textarea>
+    <p id="modalConfirmText">Are you sure you want to delete this message?</p>
+    <div id="modalConvoList"></div>
+    <div class="modal-actions">
+      <button id="modalCancel" class="btn btn-light">Cancel</button>
+      <button id="modalConfirm" class="btn btn-primary">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Selected Members Side Modal -->
+<div id="selectedMembersModal" style="display:none; position:fixed; right:0; top:0; height:100%; width:340px; z-index:1200;">
+  <div id="selectedMembersBackdrop" style="position:fixed; inset:0; background:rgba(0,0,0,0.35);"></div>
+  <div style="position:relative; height:100%; width:340px; background:#fff; box-shadow:-6px 0 18px rgba(0,0,0,0.12); padding:16px; overflow:auto;">
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <h5 style="margin:0; font-size:1.05em;">Selected Members</h5>
+      <button id="closeSelectedModal" class="btn btn-light" style="padding:6px 10px;">Close</button>
+    </div>
+    <div id="selectedMembersContainer" style="margin-top:12px;">
+      <!-- populated by JS -->
+    </div>
+  </div>
+</div>
+
+<div id="groupSettingsModal" class="msg-modal">
+  <div class="msg-modal-backdrop"></div>
+  <div class="msg-modal-content">
+    <h5>Group Settings</h5>
+    <label>Group name</label>
+    <input id="groupNameInput" type="text">
+    <div>
+      <strong>Members</strong>
+      <div id="groupMemberList"></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+<script src="{{ url_for('static', filename='js/call.js') }}"></script>
+<!-- Enhanced chat initialization -->
+<script>
+  // Theme toggle
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+  });
+  
+  if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark-mode');
+  }
+
+  // Emoji picker
+  const emojiPicker = new EmojiButton({
+    position: 'top-end',
+    autoHide: true,
+    zIndex: 1000
+  });
+  
+  emojiPicker.on('emoji', emoji => {
+    document.getElementById('messageInput').value += emoji;
+  });
+  
+  document.getElementById('emojiBtn').addEventListener('click', (e) => {
+    emojiPicker.togglePicker(e.target);
+  });
+
+  // File upload
+  document.getElementById('fileBtn').addEventListener('click', () => {
+    document.getElementById('fileInput').click();
+  });
+  
+  document.getElementById('fileInput').addEventListener('change', (e) => {
+    console.log('Files selected:', e.target.files);
+  });
+
+  // Message search
+  document.querySelector('[data-action="search_messages"]')?.addEventListener('click', () => {
+    document.getElementById('messageSearchBar').style.display = 'block';
+  });
+  
+  document.getElementById('closeMessageSearch')?.addEventListener('click', () => {
+    document.getElementById('messageSearchBar').style.display = 'none';
+  });
+
+  // DM Composer - Role selection
+  document.querySelectorAll('.dm-role-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const role = this.dataset.role;
+      
+      if (role === 'teacher') {
+        // Teacher selection: No programme/level needed (teachers not bound by programme)
+        document.getElementById('dmStepRole').style.display = 'none';
+        document.getElementById('dmStepProgramme').style.display = 'none';
+        document.getElementById('dmStepLevel').style.display = 'none';
+        document.getElementById('dmStepUsers').style.display = 'block';
+        document.querySelector('.dm-step-users-label').innerHTML = '<i class="fas fa-users"></i> Step 2 · Select Teacher';
+        
+        // Load teachers (no programme filtering)
+        await loadUsers('teacher');
+      } else if (role === 'admin') {
+        // Admin selection: No programme/level needed (admins not bound by programme)
+        document.getElementById('dmStepRole').style.display = 'none';
+        document.getElementById('dmStepProgramme').style.display = 'none';
+        document.getElementById('dmStepLevel').style.display = 'none';
+        document.getElementById('dmStepUsers').style.display = 'block';
+        document.querySelector('.dm-step-users-label').innerHTML = '<i class="fas fa-users"></i> Step 2 · Select Admin';
+        
+        // Load admins (no programme filtering)
+        await loadUsers('admin');
+      } else if (role === 'student') {
+        // Student selection: Show programme/level selector (students bound by programme)
+        document.getElementById('dmStepRole').style.display = 'none';
+        document.getElementById('dmStepProgramme').style.display = 'block';
+        document.getElementById('dmStepLevel').style.display = 'none';
+        document.getElementById('dmStepUsers').style.display = 'none';
+        document.querySelector('.dm-step-users-label').innerHTML = '<i class="fas fa-users"></i> Step 4 · Select Student';
+        
+        // Load programmes
+        await loadProgrammes('student');
+      }
+    });
+  });
+
+  // Load programmes (only for students)
+  async function loadProgrammes(targetRole) {
+    try {
+      const res = await fetch('/chat/programmes');
+      const programmes = await res.json();
+      const select = document.getElementById('dmProgrammeSelect');
+      select.innerHTML = '<option value="">Choose programme</option>';
+      programmes.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = p.name;
+        select.appendChild(opt);
+      });
+      
+      select.removeEventListener('change', handleProgrammeChange);
+      select.addEventListener('change', handleProgrammeChange);
+      select.dataset.targetRole = targetRole;
+    } catch (err) {
+      console.error('Failed to load programmes:', err);
+    }
+  }
+
+  // Handle programme selection
+  async function handleProgrammeChange() {
+    const programmeSelect = document.getElementById('dmProgrammeSelect');
+    if (programmeSelect.value) {
+      document.getElementById('dmStepProgramme').style.display = 'none';
+      document.getElementById('dmStepLevel').style.display = 'block';
+      await loadLevels();
+    }
+  }
+
+  // Load levels
+  async function loadLevels() {
+    try {
+      const res = await fetch('/chat/levels');
+      const levels = await res.json();
+      const select = document.getElementById('dmLevelSelect');
+      select.innerHTML = '<option value="">Choose level</option>';
+      levels.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.level;
+        opt.textContent = 'Level ' + l.level;
+        select.appendChild(opt);
+      });
+      
+      select.removeEventListener('change', handleLevelChange);
+      select.addEventListener('change', handleLevelChange);
+    } catch (err) {
+      console.error('Failed to load levels:', err);
+    }
+  }
+
+  // Handle level selection
+  async function handleLevelChange() {
+    const levelSelect = document.getElementById('dmLevelSelect');
+    if (levelSelect.value) {
+      document.getElementById('dmStepLevel').style.display = 'none';
+      document.getElementById('dmStepUsers').style.display = 'block';
+      const programme = document.getElementById('dmProgrammeSelect').value;
+      const level = levelSelect.value;
+      const targetRole = document.getElementById('dmProgrammeSelect').dataset.targetRole;
+      
+      // Load users based on target role (student or teacher)
+      await loadUsers(targetRole, programme, level);
+    }
+  }
+
+  // Load users
+  async function loadUsers(role, programme = null, level = null) {
+    try {
+      let url = `/chat/users?role=${role}`;
+      if (programme) url += `&programme=${encodeURIComponent(programme)}`;
+      if (level) url += `&level=${encodeURIComponent(level)}`;
+      
+      const res = await fetch(url);
+      const users = await res.json();
+      const listDiv = document.getElementById('dmUserList');
+      
+      if (users.length === 0) {
+        listDiv.innerHTML = '<p style="padding: 10px;">No users found</p>';
+        return;
+      }
+      
+      listDiv.innerHTML = users.map(u => `
+        <div style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;" data-user-id="${u.id}">
+          ${u.name}
+        </div>
+      `).join('');
+      
+      listDiv.querySelectorAll('div[data-user-id]').forEach(el => {
+        el.addEventListener('click', async function() {
+          const userId = this.dataset.userId;
+          await startDM(userId);
+        });
+      });
+    } catch (err) {
+      console.error('Failed to load users:', err);
+    }
+  }
+
+  // Start DM
+  async function startDM(userId) {
+    try {
+      const res = await fetch('/chat/send_dm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+          receiver_public_id: userId,
+          message: ' ' // Empty message to create conversation
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        // Close composer and load conversations
+        document.getElementById('dmComposerWrapper').style.display = 'none';
+        location.reload(); // Simple refresh
+      }
+    } catch (err) {
+      console.error('Failed to start DM:', err);
+    }
+  }
+
+  // New DM button
+  document.getElementById('newDMBtn').addEventListener('click', () => {
+    document.getElementById('dmComposerWrapper').style.display = 'block';
+    document.getElementById('dmStepRole').style.display = 'block';
+    document.getElementById('dmStepProgramme').style.display = 'none';
+    document.getElementById('dmStepLevel').style.display = 'none';
+    document.getElementById('dmStepUsers').style.display = 'none';
+  });
+
+  // Close DM composer
+  document.getElementById('dm_cancel').addEventListener('click', () => {
+    document.getElementById('dmComposerWrapper').style.display = 'none';
+  });
+
+  // Mobile responsive
+  let startX;
+  document.addEventListener('touchstart', e => startX = e.touches[0].clientX);
+  document.addEventListener('touchend', e => {
+    const deltaX = startX - e.changedTouches[0].clientX;
+    const leftPanel = document.querySelector('.left-panel');
+    const backdrop = document.getElementById('leftPanelBackdrop');
+    if (deltaX > 50) {
+      leftPanel.classList.remove('open');
+      if (backdrop) backdrop.style.display = 'none';
+    } else if (deltaX < -50) {
+      leftPanel.classList.add('open');
+      if (backdrop) backdrop.style.display = 'block';
+    }
+  });
+
+  // ========================================
+  // MOBILE WHATSAPP STYLE INTERACTIONS
+  // ========================================
+
+  // Mobile breakpoint detection
+  const isMobileView = () => window.innerWidth <= 768;
+  
+  // Control mobile header visibility
+  const updateMobileHeaderVisibility = () => {
+    const mobileHeader = document.getElementById('mobileAppHeader');
+    if (isMobileView()) {
+      mobileHeader.classList.add('show');
+    } else {
+      mobileHeader.classList.remove('show');
+    }
+  };
+  
+  // Control FAB visibility (mobile only)
+  const updateFABVisibility = () => {
+    const fabBtn = document.getElementById('fabBtn');
+    if (isMobileView()) {
+      fabBtn.style.display = 'flex';
+    } else {
+      fabBtn.style.display = 'none';
+    }
+  };
+  
+  // Initial calls and listener for resize
+  updateMobileHeaderVisibility();
+  updateFABVisibility();
+  window.addEventListener('resize', () => {
+    updateMobileHeaderVisibility();
+    updateFABVisibility();
+  });
+
+  // FAB (Floating Action Button) click handler
+  document.getElementById('fabBtn')?.addEventListener('click', () => {
+    const bottomSheet = document.getElementById('bottomSheet');
+    bottomSheet.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  });
+
+  // Bottom sheet backdrop click (close)
+  document.getElementById('bottomSheet')?.addEventListener('click', (e) => {
+    if (e.target.id === 'bottomSheet') {
+      e.currentTarget.classList.remove('show');
+      document.body.style.overflow = 'auto';
+    }
+  });
+
+  // Close bottom sheet when clicking outside (robust fallback)
+  document.addEventListener('click', (e) => {
+    const bottomSheet = document.getElementById('bottomSheet');
+    const fab = document.getElementById('fabBtn');
+    if (!bottomSheet || !bottomSheet.classList.contains('show')) return;
+    // If click target is inside bottomSheet or is the FAB, ignore
+    if (e.target.closest && (e.target.closest('#bottomSheet') || e.target.closest('#fabBtn'))) return;
+    // Otherwise close
+    bottomSheet.classList.remove('show');
+    document.body.style.overflow = 'auto';
+  }, { capture: true });
+
+  // Drag-to-close (touch) for bottom sheet
+  (function(){
+    const bottomSheet = document.getElementById('bottomSheet');
+    if (!bottomSheet) return;
+    const handle = bottomSheet.querySelector('.bottom-sheet-handle');
+    let startY = 0;
+    let currentY = 0;
+    let dragging = false;
+
+    const onStart = (y) => {
+      startY = y;
+      currentY = y;
+      dragging = true;
+      bottomSheet.style.transition = 'none';
+    };
+
+    const onMove = (y) => {
+      if (!dragging) return;
+      currentY = y;
+      const delta = Math.max(0, currentY - startY);
+      // translate the sheet down
+      bottomSheet.style.transform = `translateY(${delta}px)`;
+      // fade backdrop slightly
+      const opacity = Math.max(0, 1 - (delta / 300));
+      bottomSheet.style.background = `rgba(0,0,0,${0.6 * opacity})`;
+    };
+
+    const onEnd = () => {
+      if (!dragging) return;
+      dragging = false;
+      const delta = Math.max(0, currentY - startY);
+      bottomSheet.style.transition = '';
+      bottomSheet.style.transform = '';
+      bottomSheet.style.background = '';
+      // threshold to close
+      if (delta > 120) {
+        bottomSheet.classList.remove('show');
+        document.body.style.overflow = 'auto';
+      }
+    };
+
+    // touch events
+    handle?.addEventListener('touchstart', (ev) => onStart(ev.touches[0].clientY));
+    handle?.addEventListener('touchmove', (ev) => { ev.preventDefault(); onMove(ev.touches[0].clientY); }, { passive: false });
+    handle?.addEventListener('touchend', onEnd);
+
+    // also allow dragging from sheet body
+    bottomSheet.addEventListener('touchstart', (ev) => {
+      if (ev.target === bottomSheet || ev.target.closest('.bottom-sheet-handle')) onStart(ev.touches[0].clientY);
+    });
+    bottomSheet.addEventListener('touchmove', (ev) => { if (dragging) { ev.preventDefault(); onMove(ev.touches[0].clientY); } }, { passive: false });
+    bottomSheet.addEventListener('touchend', onEnd);
+  })();
+
+  // Bottom sheet options
+  document.getElementById('bottomNewDM')?.addEventListener('click', () => {
+    document.getElementById('bottomSheet').classList.remove('show');
+    document.body.style.overflow = 'auto';
+    document.getElementById('newDMBtn')?.click();
+  });
+
+  document.getElementById('bottomNewGroup')?.addEventListener('click', () => {
+    document.getElementById('bottomSheet').classList.remove('show');
+    document.body.style.overflow = 'auto';
+    document.getElementById('newGroupBtn')?.click();
+  });
+
+  // Mobile header back button
+  const backBtn = document.getElementById('backToConversations');
+  // Manage back button visibility and behavior on mobile
+  const updateBackBtn = () => {
+    if (!backBtn) return;
+    const rightPanel = document.querySelector('.right-panel');
+    const showingRight = rightPanel && rightPanel.classList.contains('active');
+    if (isMobileView() && showingRight) {
+      backBtn.style.display = 'flex';
+    } else {
+      backBtn.style.display = 'none';
+    }
+  };
+
+  if (backBtn) {
+    backBtn.addEventListener('click', () => {
+      const rightPanel = document.querySelector('.right-panel');
+      const leftPanel = document.querySelector('.left-panel');
+      if (rightPanel) rightPanel.classList.remove('active');
+      if (leftPanel) leftPanel.style.display = 'flex';
+      updateBackBtn();
+    });
+    // Ensure button visibility updates on resize and initial load
+    window.addEventListener('resize', updateBackBtn);
+    // call once to set initial state
+    updateBackBtn();
+  }
+
+  // Conversation item click - show on mobile
+  document.addEventListener('click', (e) => {
+    const convItem = e.target.closest('.conv-item');
+    if (convItem && isMobileView()) {
+      const rightPanel = document.querySelector('.right-panel');
+      const leftPanel = document.querySelector('.left-panel');
+      if (rightPanel && leftPanel) {
+        rightPanel.classList.add('active');
+        leftPanel.style.display = 'none';
+        // show back button when conversation is opened
+        updateBackBtn();
+      }
+    }
+  });
+
+  // Smooth scroll to bottom when new messages arrive
+  const scrollToBottom = (container) => {
+    if (container) {
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 100);
+    }
+  };
+
+  // Mobile keyboard handling
+  document.getElementById('messageInput')?.addEventListener('focus', () => {
+    if (isMobileView()) {
+      document.querySelector('.input-area')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  });
+
+  // Pull to refresh (mobile)
+  let startY = 0;
+  const convoList = document.querySelector('.conversation-list');
+  
+  convoList?.addEventListener('touchstart', (e) => {
+    startY = e.touches[0].clientY;
+  });
+
+  convoList?.addEventListener('touchmove', (e) => {
+    if (convoList.scrollTop === 0) {
+      const deltaY = e.touches[0].clientY - startY;
+      if (deltaY > 60) {
+        const indicator = document.querySelector('.refresh-indicator') || 
+          (() => {
+            const div = document.createElement('div');
+            div.className = 'refresh-indicator';
+            div.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            convoList.parentElement.insertBefore(div, convoList);
+            return div;
+          })();
+        indicator.classList.add('show');
+      }
+    }
+  });
+
+  convoList?.addEventListener('touchend', () => {
+    document.querySelector('.refresh-indicator')?.classList.remove('show');
+  });
+
+  // Mobile menu button
+  document.getElementById('mobileMenu')?.addEventListener('click', () => {
+    const menuDropdown = document.getElementById('menuDropdown');
+    if (menuDropdown) {
+      menuDropdown.classList.toggle('show');
+    }
+  });
+
+  // Mobile search
+  document.getElementById('mobileSearch')?.addEventListener('click', () => {
+    const searchBar = document.getElementById('messageSearchBar');
+    if (searchBar) {
+      searchBar.style.display = searchBar.style.display === 'none' ? 'flex' : 'none';
+      if (searchBar.style.display !== 'none') {
+        document.getElementById('messageSearchInput')?.focus();
+      }
+    }
+  });
+
+  // Close bottom sheet on escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const bottomSheet = document.getElementById('bottomSheet');
+      if (bottomSheet?.classList.contains('show')) {
+        bottomSheet.classList.remove('show');
+        document.body.style.overflow = 'auto';
+      }
+    }
+  });
+
+  // Update mobile status based on connection
+  const updateMobileStatus = () => {
+    const headerStatus = document.getElementById('headerStatus');
+    if (headerStatus) {
+      if (navigator.onLine) {
+        headerStatus.textContent = 'Online';
+        headerStatus.style.color = '#e0e0e0';
+      } else {
+        headerStatus.textContent = 'Offline';
+        headerStatus.style.color = '#ff6b6b';
+      }
+    }
+  };
+
+  window.addEventListener('online', updateMobileStatus);
+  window.addEventListener('offline', updateMobileStatus);
+  updateMobileStatus();
+
+  // Adjust layout on orientation change
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+      const messagesContainer = document.querySelector('.messages');
+      if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    }, 100);
+  });
+
+  // ========================================
+  // CONVERSATION CONTEXT MENU
+  // ========================================
+  
+  let currentContextConvo = null;
+  let currentContextMessage = null;
+
+  // Right-click handler for conversation items
+  let touchStartTime = 0;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let msgTouchStartTime = 0;
+  let msgTouchStartX = 0;
+  let msgTouchStartY = 0;
+  const LONG_PRESS_DURATION = 500; // milliseconds
+
+  // Haptic feedback helper
+  function triggerHapticFeedback() {
+    if (navigator.vibrate) {
+      navigator.vibrate(30); // 30ms vibration
+    }
+  }
+
+  // Smart positioning helper - ensures menu stays in viewport
+  function positionMenuSmart(menu, x, y) {
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    
+    // Use requestAnimationFrame to ensure menu is rendered before measuring
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Adjust horizontal position
+      if (rect.right > viewportWidth - 10) {
+        const newLeft = Math.max(10, viewportWidth - rect.width - 10);
+        menu.style.left = newLeft + 'px';
+      }
+      
+      // Adjust vertical position - prefer above, fallback below
+      if (rect.bottom > viewportHeight - 10) {
+        const newTop = Math.max(10, y - rect.height - 10);
+        menu.style.top = newTop + 'px';
+      }
+    });
+  }
+
+  // Desktop: Right-click context menu
+  document.addEventListener('contextmenu', (e) => {
+    const convItem = e.target.closest('.conv-item');
+    const msgItem = e.target.closest('.message-item');
+    
+    if (convItem) {
+      e.preventDefault();
+      currentContextConvo = convItem;
+      convItem.style.backgroundColor = 'rgba(200, 200, 200, 0.1)';
+      const menu = document.getElementById('convContextMenu');
+      positionMenuSmart(menu, e.pageX || e.clientX, e.pageY || e.clientY);
+      menu.style.display = 'block';
+    } else if (msgItem) {
+      e.preventDefault();
+      msgItem.style.backgroundColor = 'rgba(200, 200, 200, 0.1)';
+      const menu = document.getElementById('msgContextMenu');
+      positionMenuSmart(menu, e.pageX || e.clientX, e.pageY || e.clientY);
+      menu.style.display = 'block';
+    }
+  });
+
+  // Mobile: Long-press on conversation
+  document.addEventListener('touchstart', (e) => {
+    const convItem = e.target.closest('.conv-item');
+    if (convItem) {
+      touchStartTime = Date.now();
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      currentContextConvo = convItem;
+    }
+    
+    // Mobile: Long-press on message
+    const msgItem = e.target.closest('.message-item');
+    if (msgItem) {
+      msgTouchStartTime = Date.now();
+      msgTouchStartX = e.touches[0].clientX;
+      msgTouchStartY = e.touches[0].clientY;
+      currentContextMessage = msgItem;
+    }
+  }, false);
+
+  document.addEventListener('touchend', (e) => {
+    // Handle conversation long-press
+    if (currentContextConvo && !currentContextMessage) {
+      const duration = Date.now() - touchStartTime;
+      const distX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+      const distY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+      const movedTooMuch = distX > 10 || distY > 10;
+
+      if (duration > LONG_PRESS_DURATION && !movedTooMuch) {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerHapticFeedback();
+        currentContextConvo.style.backgroundColor = 'rgba(200, 200, 200, 0.1)';
+        const menu = document.getElementById('convContextMenu');
+        positionMenuSmart(menu, touchStartX, touchStartY);
+        menu.style.display = 'block';
+      }
+    }
+    touchStartTime = 0;
+    
+    // Handle message long-press
+    if (currentContextMessage && !currentContextConvo) {
+      const duration = Date.now() - msgTouchStartTime;
+      const distX = Math.abs(e.changedTouches[0].clientX - msgTouchStartX);
+      const distY = Math.abs(e.changedTouches[0].clientY - msgTouchStartY);
+      const movedTooMuch = distX > 10 || distY > 10;
+
+      if (duration > LONG_PRESS_DURATION && !movedTooMuch) {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerHapticFeedback();
+        currentContextMessage.style.backgroundColor = 'rgba(200, 200, 200, 0.1)';
+        const menu = document.getElementById('msgContextMenu');
+        positionMenuSmart(menu, msgTouchStartX, msgTouchStartY);
+        menu.style.display = 'block';
+      }
+    }
+    msgTouchStartTime = 0;
+    currentContextMessage = null;
+  }, false);
+
+  // Close context menu on click elsewhere with animation
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.whatsapp-context-menu')) {
+      const convMenu = document.getElementById('convContextMenu');
+      const msgMenu = document.getElementById('msgContextMenu');
+      
+      if (convMenu.style.display !== 'none') {
+        convMenu.classList.add('slide-out');
+        setTimeout(() => {
+          convMenu.style.display = 'none';
+          convMenu.classList.remove('slide-out');
+          if (currentContextConvo) {
+            currentContextConvo.style.backgroundColor = '';
+            currentContextConvo = null;
+          }
+        }, 200);
+      }
+      
+      if (msgMenu.style.display !== 'none') {
+        msgMenu.classList.add('slide-out');
+        setTimeout(() => {
+          msgMenu.style.display = 'none';
+          msgMenu.classList.remove('slide-out');
+          if (currentContextMessage) {
+            currentContextMessage.style.backgroundColor = '';
+            currentContextMessage = null;
+          }
+        }, 200);
+      }
+    }
+  }, false);
+
+  // Conversation context menu actions
+  document.getElementById('convContextMenu').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button');
+    if (!btn || !currentContextConvo) return;
+    
+    const action = btn.dataset.action;
+    const convoId = currentContextConvo.dataset.convoId || currentContextConvo.dataset.conversationId;
+    
+    try {
+      switch (action) {
+        case 'view_info':
+          // Show conversation details
+          showConversationInfo(currentContextConvo);
+          break;
+        
+        case 'mark_unread':
+          await markConversationUnread(convoId);
+          currentContextConvo.classList.add('unread');
+          btn.dataset.action = 'mark_read';
+          btn.innerHTML = '<i class="fas fa-envelope-open"></i> Mark Read';
+          break;
+        
+        case 'mark_read':
+          await markConversationRead(convoId);
+          currentContextConvo.classList.remove('unread');
+          btn.dataset.action = 'mark_unread';
+          btn.innerHTML = '<i class="fas fa-envelope"></i> Mark Unread';
+          break;
+        
+        case 'mute':
+          await muteConversation(convoId);
+          currentContextConvo.classList.add('muted');
+          btn.innerHTML = '<i class="fas fa-bell"></i> Unmute';
+          btn.dataset.action = 'unmute';
+          break;
+        
+        case 'unmute':
+          await unmuteConversation(convoId);
+          currentContextConvo.classList.remove('muted');
+          btn.innerHTML = '<i class="fas fa-bell-slash"></i> Mute';
+          btn.dataset.action = 'mute';
+          break;
+        
+        case 'pin':
+          await pinConversation(convoId);
+          currentContextConvo.classList.add('pinned');
+          btn.innerHTML = '<i class="fas fa-thumbtack"></i> Unpin';
+          btn.dataset.action = 'unpin';
+          // Move to top
+          const list = document.querySelector('.conversation-list');
+          list.insertBefore(currentContextConvo, list.firstChild);
+          break;
+        
+        case 'unpin':
+          await unpinConversation(convoId);
+          currentContextConvo.classList.remove('pinned');
+          btn.innerHTML = '<i class="fas fa-thumbtack"></i> Pin';
+          btn.dataset.action = 'pin';
+          break;
+        
+        case 'archive':
+          await archiveConversation(convoId);
+          currentContextConvo.style.opacity = '0.6';
+          currentContextConvo.classList.add('archived');
+          btn.innerHTML = '<i class="fas fa-inbox"></i> Unarchive';
+          btn.dataset.action = 'unarchive';
+          break;
+        
+        case 'unarchive':
+          await unarchiveConversation(convoId);
+          currentContextConvo.style.opacity = '1';
+          currentContextConvo.classList.remove('archived');
+          btn.innerHTML = '<i class="fas fa-archive"></i> Archive';
+          btn.dataset.action = 'archive';
+          break;
+        
+        case 'block':
+          if (confirm('Block this conversation?')) {
+            await blockConversation(convoId);
+            currentContextConvo.style.display = 'none';
+          }
+          break;
+        
+        case 'delete_convo':
+          if (confirm('Delete this conversation? This action cannot be undone.')) {
+            await deleteConversation(convoId);
+            currentContextConvo.style.opacity = '0';
+            setTimeout(() => currentContextConvo.remove(), 300);
+          }
+          break;
+      }
+    } catch (err) {
+      console.error('Context action failed:', err);
+      alert('Action failed: ' + err.message);
+    }
+    
+    // Close menu with animation
+    const convMenu = document.getElementById('convContextMenu');
+    convMenu.classList.add('slide-out');
+    setTimeout(() => {
+      convMenu.style.display = 'none';
+      convMenu.classList.remove('slide-out');
+      if (currentContextConvo) {
+        currentContextConvo.style.backgroundColor = '';
+        currentContextConvo = null;
+      }
+    }, 200);
+  });
+
+  // Helper functions for conversation actions
+  async function showConversationInfo(convoEl) {
+    const title = convoEl.querySelector('.conv-name')?.textContent || 'Conversation';
+    const lastMessage = convoEl.querySelector('.conv-preview')?.textContent || 'No messages';
+    alert(`📋 Conversation Info\n\nName: ${title}\nLast: ${lastMessage.substring(0, 50)}...`);
+  }
+
+  async function markConversationUnread(convoId) {
+    return fetch(`/chat/mark-unread/${convoId}`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(r => r.json());
+  }
+
+  async function markConversationRead(convoId) {
+    return fetch(`/chat/mark-read/${convoId}`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(r => r.json());
+  }
+
+  async function muteConversation(convoId) {
+    return fetch(`/chat/mute/${convoId}`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(r => r.json());
+  }
+
+  async function unmuteConversation(convoId) {
+    return fetch(`/chat/unmute/${convoId}`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(r => r.json());
+  }
+
+  async function pinConversation(convoId) {
+    return fetch(`/chat/pin/${convoId}`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(r => r.json());
+  }
+
+  async function unpinConversation(convoId) {
+    return fetch(`/chat/unpin/${convoId}`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(r => r.json());
+  }
+
+  async function archiveConversation(convoId) {
+    return fetch(`/chat/archive/${convoId}`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(r => r.json());
+  }
+
+  async function unarchiveConversation(convoId) {
+    return fetch(`/chat/unarchive/${convoId}`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(r => r.json());
+  }
+
+  async function blockConversation(convoId) {
+    return fetch(`/chat/block/${convoId}`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(r => r.json());
+  }
+
+  async function deleteConversation(convoId) {
+    return fetch(`/chat/delete/${convoId}`, {
+      method: 'DELETE',
+      headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(r => r.json());
+  }
+
+  // ========================================
+  // MODAL CLOSE HANDLERS
+  // ========================================
+  
+  // Modal cancel button
+  document.getElementById('modalCancel')?.addEventListener('click', () => {
+    const modal = document.getElementById('msgActionModal');
+    modal.classList.remove('show');
+    setTimeout(() => {
+      modal.style.display = 'none';
+    }, 300);
+  });
+
+  // Modal backdrop click
+  const msgActionModal = document.getElementById('msgActionModal');
+  if (msgActionModal) {
+    const backdrop = msgActionModal.querySelector('.modal-backdrop');
+    if (backdrop) {
+      backdrop.addEventListener('click', () => {
+        msgActionModal.classList.remove('show');
+        setTimeout(() => {
+          msgActionModal.style.display = 'none';
+        }, 300);
+      });
+    }
+  }
+
+  // Close menus when clicking elsewhere
+  document.addEventListener('click', (e) => {
+    const convMenu = document.getElementById('convContextMenu');
+    const msgMenu = document.getElementById('msgContextMenu');
+    const modal = document.getElementById('msgActionModal');
+
+    // Close conversation menu
+    if (convMenu && !e.target.closest('.conv-item') && !e.target.closest('#convContextMenu')) {
+      convMenu.style.display = 'none';
+      document.querySelectorAll('.conv-item').forEach(item => {
+        item.style.backgroundColor = '';
+      });
+    }
+
+    // Close message menu
+    if (msgMenu && !e.target.closest('.message-item') && !e.target.closest('#msgContextMenu')) {
+      msgMenu.style.display = 'none';
+      document.querySelectorAll('.message-item').forEach(item => {
+        item.style.backgroundColor = '';
+      });
+    }
+
+    // Close modal on outside click (if showing)
+    if (modal && modal.style.display !== 'none' && e.target === modal) {
+      modal.classList.remove('show');
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 300);
+    }
+  });
+</script>
+{% endblock %}
