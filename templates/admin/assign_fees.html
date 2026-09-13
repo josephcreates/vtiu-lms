@@ -36,14 +36,8 @@
         
         <div class="col-md-3 col-6">
           <label class="form-label small fw-semibold">Academic Year <span class="text-warning">*</span></label>
-          <select name="academic_year" class="form-select form-select-sm" required>
-            <option value="">-- Select --</option>
-            {% for year in academic_years %}
-              <option value="{{ year.start_date.year }}" {% if current_settings and current_settings.academic_year == year.start_date.year %}selected{% endif %}>
-                {{ year.start_date.year }}
-              </option>
-            {% endfor %}
-          </select>
+          <input type="text" class="form-control form-control-sm" value="{{ current_academic_year or 'Not configured' }}" readonly>
+          <input type="hidden" name="academic_year" value="{{ current_academic_year or '' }}">
         </div>
 
         <div class="col-md-3 col-6">
@@ -131,25 +125,28 @@
 
         <div class="col-md-3 col-6">
           <label for="academic_year" class="form-label small fw-semibold">Academic Year <span class="text-warning">*</span></label>
-          <select id="academic_year" name="academic_year" class="form-select form-select-sm" required>
-            <option value="">-- Select --</option>
-            {% for year in academic_years %}
-  <option value="{{ year.id }}">
-    {{ year.start_date.year }}
-  </option>
-{% endfor %}
-          </select>
+          <input type="text" id="academic_year_display" class="form-control form-control-sm" value="{{ current_academic_year or 'Not configured' }}" readonly>
+          <input type="hidden" id="academic_year" name="academic_year" value="{{ current_academic_year or '' }}">
         </div>
 
         <div class="col-md-3 col-6">
           <label for="class_level" class="form-label small fw-semibold">Class Level <span class="text-warning">*</span></label>
-          <select id="class_level" name="class_level" class="form-select form-select-sm" required>
+          <select id="class_level" name="programme_level" class="form-select form-select-sm" required>
             <option value="">-- Select --</option>
             <option value="100">100 Level</option>
             <option value="200">200 Level</option>
             <option value="300">300 Level</option>
             <option value="400">400 Level</option>
           </select>
+        </div>
+
+        <div class="col-md-3 col-6">
+          <label for="paystack_mode" class="form-label small fw-semibold">Paystack Mode</label>
+          <select id="paystack_mode" name="paystack_mode" class="form-select form-select-sm">
+            <option value="test">Test</option>
+            <option value="live">Live</option>
+          </select>
+          <small class="form-text text-muted">Choose Test while validating payments.</small>
         </div>
 
         <div class="col-md-3 col-6 text-end">

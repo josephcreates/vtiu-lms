@@ -2,6 +2,10 @@
 
 import os
 import logging
+import re
+import hashlib
+import hmac
+import json
 from datetime import datetime
 from flask import Flask, render_template, redirect, url_for, flash, request, abort, jsonify, send_from_directory, current_app, g
 from werkzeug.utils import secure_filename
@@ -16,35 +20,101 @@ load_dotenv()
 from flask_login import LoginManager, login_required, logout_user, current_user
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
+from flask_sock import Sock
 from utils.extensions import db, mail, socketio
 from config import Config
+from utils.academic_year import configured_academic_year
 
 # ===== Flask App =====
 app = Flask(__name__)
 app.config.from_object(Config)
+sock = Sock(app)
+
+
+@app.context_processor
+def inject_configured_academic_year():
+    return {'current_academic_year': configured_academic_year()}
 
 # Initialize extensions ONCE
 db.init_app(app)
 migrate = Migrate(app, db)
 mail.init_app(app)
-socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+socketio_options = {
+    'cors_allowed_origins': '*',
+}
+requested_socketio_mode = os.environ.get('SOCKETIO_ASYNC_MODE', '').strip().lower()
+if requested_socketio_mode in {'eventlet', 'threading'}:
+    socketio_options['async_mode'] = requested_socketio_mode
+elif os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RAILWAY_ENVIRONMENT'):
+    socketio_options['async_mode'] = 'eventlet'
+else:
+    socketio_options['async_mode'] = 'threading'
+if app.config.get('REDIS_URL'):
+    socketio_options['message_queue'] = app.config['REDIS_URL']
+    app.logger.info('SocketIO Redis message queue enabled')
+else:
+    app.logger.info('SocketIO Redis message queue disabled; using local process events')
+socketio.init_app(app, **socketio_options)
 csrf = CSRFProtect(app)
+
+
+@app.route('/api/paystack/webhook', methods=['POST'])
+@csrf.exempt
+def paystack_webhook():
+    """Process Paystack charge.success events for test or live transactions."""
+    payload = request.get_json(silent=True) or {}
+    data = payload.get('data') or {}
+    reference = data.get('reference')
+    if not reference:
+        return jsonify({'status': True}), 200
+
+    from models import StudentFeeTransaction
+    transaction = StudentFeeTransaction.query.filter_by(
+        paystack_reference=reference, payment_method='paystack'
+    ).first()
+    if not transaction:
+        return jsonify({'status': True}), 200
+
+    mode = transaction.paystack_mode if transaction.paystack_mode in {'test', 'live'} else 'test'
+    secret_key = app.config.get(f'PAYSTACK_{mode.upper()}_SECRET_KEY')
+    signature = request.headers.get('x-paystack-signature', '')
+    expected_signature = hmac.new(
+        secret_key.encode('utf-8'), request.get_data(), hashlib.sha512
+    ).hexdigest() if secret_key else ''
+    if not signature or not hmac.compare_digest(signature, expected_signature):
+        app.logger.warning('Rejected Paystack webhook for reference %s', reference)
+        return jsonify({'status': False, 'message': 'Invalid signature'}), 401
+
+    currency = app.config.get('PAYSTACK_CURRENCY', 'GHS')
+    valid = (
+        payload.get('event') == 'charge.success'
+        and data.get('status') == 'success'
+        and int(data.get('amount', 0)) == int(round(transaction.amount * 100))
+        and data.get('currency') == currency
+    )
+    if valid and not transaction.is_approved:
+        transaction.is_approved = True
+        transaction.timestamp = datetime.utcnow()
+        db.session.commit()
+    return jsonify({'status': True}), 200
 
 # ===== Logging =====
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ===== Configuration =====
-# Check if we're in production (Render deployment)
+# Check if we're in the Railway production environment.
 IS_PRODUCTION = bool(
     app.config.get("IS_PRODUCTION")
     or os.environ.get("IS_PRODUCTION") in ("1", "true", "True")
     or os.environ.get("FLASK_ENV", "").lower() == "production"
-    or os.environ.get("RENDER") == "true"  # Render sets this automatically
-    or "render.com" in os.environ.get("RENDER_EXTERNAL_URL", "")
+    or os.environ.get("RAILWAY_ENVIRONMENT")
+    or os.environ.get("RAILWAY_ENVIRONMENT_NAME")
+    or os.environ.get("RAILWAY_PROJECT_ID")
+    or os.environ.get("RAILWAY_SERVICE_ID")
 )
 
-logger.info(f"🌍 Environment: {'PRODUCTION (Render)' if IS_PRODUCTION else 'LOCAL DEVELOPMENT'}")
+logger.info(f"🌍 Environment: {'PRODUCTION (Railway)' if IS_PRODUCTION else 'LOCAL DEVELOPMENT'}")
 
 # ===== Memory Management =====
 import gc
@@ -243,9 +313,10 @@ def initialize_database():
             ApplicationResult, ApplicationPayment
         )
         logger.info("✅ All models imported successfully")
-        
+
         # Create all tables using db.create_all() - this is safest method
         logger.info("🔨 Creating all database tables...")
+        from sqlalchemy import inspect, text
         try:
             db.create_all()
             logger.info("✅ db.create_all() completed successfully")
@@ -254,8 +325,158 @@ def initialize_database():
                 logger.info("✅ Some tables/indexes already exist - continuing...")
             else:
                 logger.warning(f"⚠️ db.create_all() warning: {e}")
+
+        # Normalize legacy values only when the live table still has the column.
+        inspector = inspect(db.engine)
+        for table in db.metadata.sorted_tables:
+            year_column = table.c.get('academic_year')
+            primary_key = list(table.primary_key.columns)
+            if year_column is None or len(primary_key) != 1 or table.name not in inspector.get_table_names():
+                continue
+            live_columns = {
+                column['name'] for column in inspector.get_columns(table.name)
+            }
+            if 'academic_year' not in live_columns:
+                continue
+            try:
+                rows = db.session.execute(
+                    db.select(table.c[primary_key[0].name], year_column)
+                ).all()
+                for row in rows:
+                    value = row[1]
+                    match = re.match(r'^\s*(\d{4})', str(value or ''))
+                    normalized = match.group(1) if match else value
+                    if normalized != value and normalized:
+                        db.session.execute(
+                            table.update().where(
+                                table.c[primary_key[0].name] == row[0]
+                            ).values(academic_year=normalized)
+                        )
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                logger.warning("Could not normalize academic years in %s: %s", table.name, exc)
+
+        # Keep existing PostgreSQL databases compatible with newly added model
+        # columns. db.create_all() does not alter existing tables.
+        inspector = inspect(db.engine)
+        admin_columns = {column["name"] for column in inspector.get_columns("admin")}
+        if "notes" not in admin_columns:
+            logger.info("🔧 Adding missing admin.notes column...")
+            with db.engine.begin() as connection:
+                connection.execute(text("ALTER TABLE admin ADD COLUMN notes TEXT"))
+            logger.info("✅ admin.notes column added")
+
+        student_profile_columns = {
+            column["name"]
+            for column in inspector.get_columns("student_profile")
+        }
+        with db.engine.begin() as connection:
+            if "vetting_status" not in student_profile_columns:
+                logger.info("🔧 Adding missing student_profile.vetting_status column...")
+                connection.execute(text(
+                    "ALTER TABLE student_profile "
+                    "ADD COLUMN vetting_status VARCHAR(20) DEFAULT 'pending'"
+                ))
+            if "rejection_reason" not in student_profile_columns:
+                logger.info("🔧 Adding missing student_profile.rejection_reason column...")
+                connection.execute(text(
+                    "ALTER TABLE student_profile ADD COLUMN rejection_reason TEXT"
+                ))
+
+        fee_structure_columns = {
+            column["name"]
+            for column in inspector.get_columns("programme_fee_structure")
+        }
+        transaction_columns = {
+            column["name"]
+            for column in inspector.get_columns("student_fee_transaction")
+        }
+        with db.engine.begin() as connection:
+            if "paystack_mode" not in fee_structure_columns:
+                connection.execute(text(
+                    "ALTER TABLE programme_fee_structure "
+                    "ADD COLUMN paystack_mode VARCHAR(10) NOT NULL DEFAULT 'test'"
+                ))
+            if "payment_method" not in transaction_columns:
+                connection.execute(text(
+                    "ALTER TABLE student_fee_transaction ADD COLUMN payment_method VARCHAR(30)"
+                ))
+            if "paystack_mode" not in transaction_columns:
+                connection.execute(text(
+                    "ALTER TABLE student_fee_transaction ADD COLUMN paystack_mode VARCHAR(10)"
+                ))
+            if "paystack_reference" not in transaction_columns:
+                connection.execute(text(
+                    "ALTER TABLE student_fee_transaction "
+                    "ADD COLUMN paystack_reference VARCHAR(100) UNIQUE"
+                ))
+
+        # Older deployments may have the notification tables but not the
+        # columns added to the current Notification model. db.create_all()
+        # does not alter existing tables, so repair those columns explicitly.
+        notification_columns = {
+            column["name"]
+            for column in inspector.get_columns("notification")
+        }
+        with db.engine.begin() as connection:
+            if "created_at" not in notification_columns:
+                connection.execute(text(
+                    "ALTER TABLE notification "
+                    "ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                ))
+            if "priority" not in notification_columns:
+                connection.execute(text(
+                    "ALTER TABLE notification "
+                    "ADD COLUMN priority VARCHAR(20) DEFAULT 'normal'"
+                ))
+            if "is_archived" not in notification_columns:
+                connection.execute(text(
+                    "ALTER TABLE notification "
+                    "ADD COLUMN is_archived BOOLEAN DEFAULT FALSE"
+                ))
+
+        grade_column_definitions = {
+            "quiz_total_score": "FLOAT",
+            "quiz_max_possible": "FLOAT",
+            "assignment_total_score": "FLOAT",
+            "assignment_max_possible": "FLOAT",
+            "exam_total_score": "FLOAT",
+            "exam_max_possible": "FLOAT",
+            "quiz_weighted_score": "FLOAT",
+            "assignment_weighted_score": "FLOAT",
+            "exam_weighted_score": "FLOAT",
+            "grade_point": "FLOAT",
+            "pass_fail": "VARCHAR(10)",
+        }
+        grade_columns = {
+            column["name"]
+            for column in inspector.get_columns("student_course_grade")
+        }
+        with db.engine.begin() as connection:
+            for column_name, column_type in grade_column_definitions.items():
+                if column_name not in grade_columns:
+                    connection.execute(text(
+                        "ALTER TABLE student_course_grade "
+                        f"ADD COLUMN {column_name} {column_type}"
+                    ))
+
+        # Repair partially initialized databases. A failed create_all() can
+        # leave later model tables absent even though their models are loaded.
+        logger.info("🔍 Checking every imported model table...")
+        existing_tables = set(inspect(db.engine).get_table_names())
+        for table in db.metadata.sorted_tables:
+            if table.name in existing_tables:
+                continue
+            try:
+                table.create(db.engine, checkfirst=True)
+                existing_tables.add(table.name)
+                logger.info(f"  ✓ {table.name} (created)")
+            except Exception as e:
+                logger.warning(f"  ⚠️ {table.name}: {e}")
+                db.session.rollback()
         
-        # Double-check critical tables exist by trying to create them explicitly
+        # Verify critical tables without recreating existing tables and indexes.
         logger.info("🔍 Verifying critical tables...")
         critical_tables = [
             (User, "user"),
@@ -264,9 +485,9 @@ def initialize_database():
             (ProgrammeFeeStructure, "programme_fee_structure"),
             (StudentFeeBalance, "student_fee_balance"),
             (StudentFeeTransaction, "student_fee_transaction"),
-            (Notification, "notifications"),
-            (NotificationRecipient, "notification_recipients"),
-            (NotificationPreference, "notification_preferences"),
+            (Notification, "notification"),
+            (NotificationRecipient, "notification_recipient"),
+            (NotificationPreference, "notification_preference"),
             (Course, "course"),
             (Assignment, "assignment"),
             (Quiz, "quiz"),
@@ -284,20 +505,14 @@ def initialize_database():
             (ApplicationPayment, "application_payment"),
         ]
         
-        for model, table_name in critical_tables:
-            try:
-                model.__table__.create(db.engine, checkfirst=True)
+        existing_tables = set(inspect(db.engine).get_table_names())
+        for _model, table_name in critical_tables:
+            if table_name in existing_tables:
                 logger.info(f"  ✓ {table_name}")
-            except Exception as e:
-                if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
-                    logger.info(f"  ✓ {table_name} (already exists)")
-                else:
-                    logger.warning(f"  ⚠️ {table_name}: {e}")
-                    # Rollback any failed transaction
-                    db.session.rollback()
+            else:
+                logger.warning(f"  ⚠️ {table_name}: table is missing")
         
         # Check how many tables were created
-        from sqlalchemy import inspect
         inspector = inspect(db.engine)
         all_tables = inspector.get_table_names()
         logger.info(f"📊 Total tables in database: {len(all_tables)}")
@@ -442,6 +657,30 @@ def select_portal():
     """Portal selection page"""
     return render_template('portal_selection.html')
 
+
+@app.route('/contact')
+def public_contact():
+    """Public support and contact page."""
+    return render_template('public_page.html', page='contact')
+
+
+@app.route('/privacy')
+def public_privacy():
+    """Public privacy policy page."""
+    return render_template('public_page.html', page='privacy')
+
+
+@app.route('/terms')
+def public_terms():
+    """Public terms of service page."""
+    return render_template('public_page.html', page='terms')
+
+
+@app.route('/refund-policy')
+def public_refund_policy():
+    """Public payment and refund policy page."""
+    return render_template('public_page.html', page='refunds')
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -496,6 +735,59 @@ def health():
             'status': 'error',
             'error': str(e)
         }), 500
+
+
+@app.route('/api/login', methods=['POST'])
+def mobile_login():
+    """Authenticate the Android client against the shared LMS database."""
+    data = request.get_json(silent=True) or {}
+    username = (data.get('username') or '').strip()
+    user_id = (data.get('user_id') or '').strip()
+    password = data.get('password') or ''
+    role = (data.get('role') or '').strip().lower()
+
+    if not username or not user_id or not password:
+        return jsonify({
+            'success': False,
+            'message': 'username, user_id, and password are required'
+        }), 400
+
+    from models import Admin, User
+
+    account = None
+    if role in {'finance_admin', 'academic_admin', 'admissions_admin', 'superadmin', 'admin'}:
+        account = Admin.query.filter_by(admin_id=user_id).first()
+        valid = account and account.username.lower() == username.lower() and account.check_password(password)
+    else:
+        account = User.query.filter_by(user_id=user_id).first()
+        valid = account and account.username.lower() == username.lower() and account.check_password(password)
+
+    if not valid:
+        return jsonify({'success': False, 'message': 'Invalid login credentials'}), 401
+
+    if isinstance(account, Admin):
+        account_role = 'superadmin' if account.is_superadmin else account.role
+        name = account.username
+        department = account.department
+        profile_picture = account.profile_picture
+    else:
+        account_role = account.role
+        name = f"{account.first_name} {account.last_name}".strip()
+        department = None
+        profile_picture = account.profile_picture
+
+    return jsonify({
+        'success': True,
+        'message': 'Login successful',
+        'user': {
+            'id': account.id,
+            'user_id': getattr(account, 'user_id', None) or account.admin_id,
+            'name': name,
+            'role': account_role,
+            'department': department,
+            'profile_picture_url': profile_picture,
+        }
+    }), 200
 
 # ===== Database Initialization Routes =====
 
@@ -556,21 +848,21 @@ def init_notification_tables():
             
             # Force create notification tables
             Notification.__table__.create(db.engine, checkfirst=True)
-            logger.info("✓ notifications table created/verified")
+            logger.info("✓ notification table created/verified")
             
             NotificationRecipient.__table__.create(db.engine, checkfirst=True)
-            logger.info("✓ notification_recipients table created/verified")
+            logger.info("✓ notification_recipient table created/verified")
             
             NotificationPreference.__table__.create(db.engine, checkfirst=True)
-            logger.info("✓ notification_preferences table created/verified")
+            logger.info("✓ notification_preference table created/verified")
             
             return jsonify({
                 'status': 'success',
                 'message': 'Notification tables created successfully',
                 'tables': [
-                    'notifications',
-                    'notification_recipients',
-                    'notification_preferences'
+                    'notification',
+                    'notification_recipient',
+                    'notification_preference'
                 ]
             }), 200
             
@@ -596,7 +888,7 @@ def check_database():
             # Check for critical tables
             critical_tables = [
                 'user', 'admin', 'student_profile',
-                'notifications', 'notification_recipients',
+                'notification', 'notification_recipient',
                 'course', 'assignment', 'quiz', 'exam'
             ]
             
@@ -635,11 +927,12 @@ from student_routes import student_bp
 from teacher_routes import teacher_bp
 from exam_routes import exam_bp
 from vclass_routes import vclass_bp
-from chat_routes import chat_bp
+from chat_routes import chat_bp, init_chat_bridge
 from finance_routes import finance_bp
 from student_results_routes import results_bp
 from student_transcript_routes import create_student_transcript_blueprint
 from admissions.routes import admissions_bp
+from mobile_api_routes import mobile_api_bp, init_mobile_ws
 
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(student_bp, url_prefix='/student')
@@ -651,6 +944,13 @@ app.register_blueprint(finance_bp, url_prefix='/finance')
 app.register_blueprint(results_bp, url_prefix='/student-results')
 app.register_blueprint(create_student_transcript_blueprint())
 app.register_blueprint(admissions_bp, url_prefix='/admissions')
+app.register_blueprint(mobile_api_bp)
+
+# Initialize Mobile WebSockets
+init_mobile_ws(sock)
+
+# Initialize Chat Bridge
+init_chat_bridge(app)
 
 logger.info("✅ All blueprints registered successfully")
 

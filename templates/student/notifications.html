@@ -28,7 +28,7 @@
               <div class="small text-muted">
                 {{ latest.created_at.strftime('%d %b %Y, %I:%M %p') }}
                 &middot;
-                {{ latest.message[:80] ~ ('...' if latest.message|length > 80 else '') }}
+                {{ (latest.message or 'No message')[:80] ~ ('...' if (latest.message or '')|length > 80 else '') }}
               </div>
             </a>
 

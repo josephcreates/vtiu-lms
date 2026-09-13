@@ -67,7 +67,7 @@ else:
     SQLALCHEMY_DATABASE_URI = "sqlite:///instance/lms.db"
 ```
 - Local dev: SQLite in `instance/lms.db`
-- Render/production: PostgreSQL via environment variable
+- Railway production: PostgreSQL via environment variable
 - Always test migration compatibility with both
 
 ### 6. **Email System - Flask-Mailman with Gmail**

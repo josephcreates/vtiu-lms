@@ -14,24 +14,122 @@
       <th>Course</th>
       <th>Start</th>
       <th>End</th>
+      <th>Room code</th>
       <th>Actions</th>
     </tr>
   </thead>
   <tbody>
     {% for m in meetings %}
-    <tr>
+    <tr class="meeting-row{% if m.host_id == current_user.id %} manageable-meeting{% endif %}" data-meeting-id="{{ m.id }}"{% if m.host_id == current_user.id %} data-edit-url="{{ url_for('teacher.edit_meeting', meeting_id=m.id) }}" data-delete-url="{{ url_for('teacher.delete_meeting', meeting_id=m.id) }}{% endif %}">
       <td>{{ m.title }}</td>
       <td>{{ m.course.name }}</td>
       <td>{{ m.scheduled_start }}</td>
       <td>{{ m.scheduled_end }}</td>
       <td>
-        <a href="{{ m.join_url }}" target="_blank" class="btn btn-success btn-sm">Join</a>
-        {% if m.host_id == current_user.user_id %}
-          <a href="{{ m.start_url }}" target="_blank" class="btn btn-primary btn-sm">Start</a>
+        {% if m.host_id == current_user.id %}
+          <div class="input-group input-group-sm room-code-group">
+            <input class="form-control room-code" value="{{ m.meeting_code }}" readonly aria-label="Room code for {{ m.title }}">
+            <button type="button" class="btn btn-outline-secondary copy-room-code" title="Copy room code" aria-label="Copy room code">
+              <i class="fas fa-copy" aria-hidden="true"></i>
+            </button>
+          </div>
+        {% endif %}
+      </td>
+      <td>
+        {% if m.host_id == current_user.id %}
+          <a href="{{ url_for('vclass.join_meeting', meeting_id=m.id) }}" class="btn btn-primary btn-sm">Start</a>
         {% endif %}
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
+<div id="meeting-context-menu" class="meeting-context-menu" role="menu" aria-hidden="true">
+  <button type="button" data-action="edit">Edit meeting</button>
+  <button type="button" data-action="delete" class="text-danger">Delete meeting</button>
+</div>
+
+<form id="delete-meeting-form" method="POST" class="d-none">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<style>
+  .meeting-row { cursor: context-menu; }
+  .meeting-context-menu {
+    display: none;
+    position: fixed;
+    z-index: 1050;
+    min-width: 170px;
+    padding: .35rem 0;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: .35rem;
+    box-shadow: 0 .35rem 1rem rgba(0, 0, 0, .15);
+  }
+  .meeting-context-menu.is-visible { display: block; }
+  .meeting-context-menu button {
+    display: block;
+    width: 100%;
+    padding: .5rem .75rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+  .meeting-context-menu button:hover { background: #f8f9fa; }
+</style>
+
+<script>
+  const meetingContextMenu = document.getElementById('meeting-context-menu');
+  const deleteMeetingForm = document.getElementById('delete-meeting-form');
+  let selectedMeetingRow = null;
+
+  document.querySelectorAll('.manageable-meeting').forEach(row => {
+    row.addEventListener('contextmenu', event => {
+      event.preventDefault();
+      selectedMeetingRow = row;
+      meetingContextMenu.style.left = `${Math.min(event.clientX, window.innerWidth - meetingContextMenu.offsetWidth - 8)}px`;
+      meetingContextMenu.style.top = `${Math.min(event.clientY, window.innerHeight - meetingContextMenu.offsetHeight - 8)}px`;
+      meetingContextMenu.classList.add('is-visible');
+      meetingContextMenu.setAttribute('aria-hidden', 'false');
+    });
+  });
+
+  document.addEventListener('click', event => {
+    if (!meetingContextMenu.contains(event.target)) {
+      meetingContextMenu.classList.remove('is-visible');
+      meetingContextMenu.setAttribute('aria-hidden', 'true');
+    }
+  });
+
+  meetingContextMenu.addEventListener('click', event => {
+    const action = event.target.closest('button')?.dataset.action;
+    if (!action || !selectedMeetingRow) return;
+
+    if (action === 'edit') {
+      window.location.href = selectedMeetingRow.dataset.editUrl;
+    } else if (action === 'delete') {
+      if (window.confirm('Delete this meeting? Its class chat will also be deleted.')) {
+        deleteMeetingForm.action = selectedMeetingRow.dataset.deleteUrl;
+        deleteMeetingForm.submit();
+      }
+    }
+  });
+
+  document.querySelectorAll('.copy-room-code').forEach(button => {
+    button.addEventListener('click', async () => {
+      const input = button.closest('.room-code-group')?.querySelector('.room-code');
+      if (!input) return;
+      try {
+        await navigator.clipboard.writeText(input.value);
+        const original = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+        window.setTimeout(() => { button.innerHTML = original; }, 1200);
+      } catch (error) {
+        input.select();
+        document.execCommand('copy');
+      }
+    });
+  });
+</script>
 {% endblock %}

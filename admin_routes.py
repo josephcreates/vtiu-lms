@@ -53,6 +53,7 @@ from utils.email import send_approval_credentials_email, send_email, send_tempor
 from utils.notifications import create_assignment_notification, create_fee_notification
 
 from utils.notification_engine import notify_quiz_created, notify_exam_scheduled, notify_fee_assigned
+from utils.academic_year import configured_academic_year
 
 import uuid, secrets
 
@@ -106,59 +107,71 @@ def ensure_release_columns():
     """Ensure new columns exist on semester_result_release table (compatible with PostgreSQL)."""
 
     try:
+        from sqlalchemy import inspect, text
+        from models import SemesterResultRelease
 
-        from sqlalchemy import text
+        SemesterResultRelease.__table__.create(db.engine, checkfirst=True)
+        expected_columns = {
+            'academic_year': 'VARCHAR(20)',
+            'semester': 'VARCHAR(10)',
+            'is_released': 'BOOLEAN DEFAULT FALSE',
+            'is_locked': 'BOOLEAN DEFAULT FALSE',
+            'released_at': 'TIMESTAMP',
+            'locked_at': 'TIMESTAMP',
+            'submitted_by': 'INTEGER',
+            'submitted_by_name': 'TEXT',
+            'submitted_at': 'TIMESTAMP',
+            'submitted_note': 'TEXT',
+            'submitted_courses': 'TEXT',
+            'created_at': 'TIMESTAMP',
+            'updated_at': 'TIMESTAMP',
+        }
 
-        conn = db.engine.connect()
-
-        # Use PostgreSQL syntax to get column information
-        res = conn.execute(text("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'semester_result_release'
-        """))
-
-        cols = [r[0] for r in res.fetchall()]
-
-        to_add = []
-
-        if 'submitted_by' not in cols:
-
-            to_add.append("ALTER TABLE semester_result_release ADD COLUMN submitted_by INTEGER")
-
-        if 'submitted_by_name' not in cols:
-
-            to_add.append("ALTER TABLE semester_result_release ADD COLUMN submitted_by_name TEXT")
-
-        if 'submitted_at' not in cols:
-
-            to_add.append("ALTER TABLE semester_result_release ADD COLUMN submitted_at DATETIME")
-
-        if 'submitted_note' not in cols:
-
-            to_add.append("ALTER TABLE semester_result_release ADD COLUMN submitted_note TEXT")
-
-        if 'submitted_courses' not in cols:
-
-            to_add.append("ALTER TABLE semester_result_release ADD COLUMN submitted_courses TEXT")
-
-
-
-        for sql in to_add:
-
-            try:
-
-                conn.execute(text(sql))
-
-            except Exception:
-
-                logger.exception(f"Failed to add column with SQL: {sql}")
-
-        conn.close()
-
+        with db.engine.begin() as connection:
+            columns = {
+                column['name']
+                for column in inspect(connection).get_columns('semester_result_release')
+            }
+            for column_name, column_type in expected_columns.items():
+                if column_name not in columns:
+                    connection.execute(text(
+                        f'ALTER TABLE semester_result_release '
+                        f'ADD COLUMN {column_name} {column_type}'
+                    ))
     except Exception:
-
         logger.exception("Failed ensuring semester_result_release columns")
+
+
+def ensure_promotion_tables():
+    """Ensure promotion tables exist before promotion pages query them."""
+    from sqlalchemy import inspect, text
+    from models import StudentPromotion
+
+    StudentPromotion.__table__.create(db.engine, checkfirst=True)
+    expected_columns = {
+        'student_id': 'VARCHAR(50)',
+        'promoted_by': 'INTEGER',
+        'from_level': 'VARCHAR(10)',
+        'to_level': 'VARCHAR(10)',
+        'gpa': 'DOUBLE PRECISION',
+        'academic_status': 'VARCHAR(50)',
+        'academic_year': 'VARCHAR(10)',
+        'promoted_at': 'TIMESTAMP',
+        'created_at': 'TIMESTAMP',
+        'notes': 'TEXT',
+    }
+
+    with db.engine.begin() as connection:
+        columns = {
+            column['name']
+            for column in inspect(connection).get_columns('student_promotion')
+        }
+        for column_name, column_type in expected_columns.items():
+            if column_name not in columns:
+                connection.execute(text(
+                    f'ALTER TABLE student_promotion '
+                    f'ADD COLUMN {column_name} {column_type}'
+                ))
 
 
 
@@ -437,57 +450,27 @@ def dashboard():
     try:
 
         admin.update_last_login()
-
     except Exception as e:
-
         logger.warning(f"Could not update last login: {e}")
 
-    
-
     # ============================================================
-
     # ROUTE BY ROLE (with priority)
-
     # ============================================================
-
-    
-
-    # SuperAdmin - show comprehensive dashboard
 
     if admin.is_superadmin:
-
         logger.info(f"SuperAdmin {admin.admin_id} accessing main dashboard")
-
         return redirect(url_for('admin.superadmin_dashboard'))
 
-    
-
-    # Finance Admin
-
     elif admin.is_finance_admin:
-
         logger.info(f"Finance Admin {admin.admin_id} redirected to finance dashboard")
-
         return redirect(url_for('admin.finance_dashboard'))
 
-    
-
-    # Academic Admin
-
     elif admin.is_academic_admin:
-
         logger.info(f"Academic Admin {admin.admin_id} redirected to academic dashboard")
-
         return redirect(url_for('admin.academic_dashboard'))
 
-    
-
-    # Admissions Admin
-
     elif admin.is_admissions_admin:
-
         logger.info(f"Admissions Admin {admin.admin_id} redirected to admissions dashboard")
-
         return redirect(url_for('admin.admissions_dashboard'))
 
     
@@ -1522,7 +1505,7 @@ def register_continuing_student():
 
         study_format = request.form.get('study_format', 'Regular').strip()
 
-        academic_year = request.form.get('academic_year', '').strip()
+        academic_year = configured_academic_year()
 
         semester = request.form.get('semester', '').strip()
 
@@ -2190,6 +2173,7 @@ def register_user():
 
         form.role.choices = [
 
+            ('student', 'Student'),
             ('teacher', 'Teacher'),
 
             ('finance_admin', 'Finance Admin'),
@@ -2204,13 +2188,19 @@ def register_user():
 
     else:
 
-        form.role.choices = [('teacher', 'Teacher')]
+        form.role.choices = [('student', 'Student'), ('teacher', 'Teacher')]
 
 
 
     if request.method == 'GET':
 
-        return render_template('admin/register_user.html', form=form, is_superadmin=current_user.is_superadmin)
+        programmes = [p for p in CERTIFICATE_PROGRAMMES + DIPLOMA_PROGRAMMES if p[0]]
+        return render_template(
+            'admin/register_user.html',
+            form=form,
+            is_superadmin=current_user.is_superadmin,
+            programmes=programmes
+        )
 
 
 
@@ -2228,7 +2218,7 @@ def register_user():
 
     middle_name = request.form.get('middle_name', '').strip()
 
-    email = (request.form.get('email') or '').strip() or None
+    email = None
 
     temp_password = request.form.get('password', '').strip()
 
@@ -2242,7 +2232,7 @@ def register_user():
 
 
 
-    if not current_user.is_superadmin and role != 'teacher':
+    if not current_user.is_superadmin and role not in {'student', 'teacher'}:
 
         flash("❌ Only Superadmin can create Admins.", 'danger')
 
@@ -2296,25 +2286,74 @@ def register_user():
 
 
 
-    # Check email uniqueness across users and admins
-
-    if email:
-
-        existing_user = User.query.filter_by(email=email).first()
-
-        existing_admin = Admin.query.filter_by(email=email).first()
-
-        if existing_user or existing_admin:
-
-            flash("❌ Email already in use. Use a different email.", 'danger')
-
-            return redirect(url_for('admin.register_user'))
+    # Generate the login email from the name and role. This is authoritative
+    # so manually entered or reused addresses cannot create duplicate accounts.
+    email = generate_unique_email(first_name, middle_name, last_name, role)
 
 
 
     try:
 
+        # ======================================================
+        # STUDENT REGISTRATION (User + StudentProfile)
+        # ======================================================
+        if role == 'student':
+            programme = request.form.get('current_programme', '').strip()
+            level_str = request.form.get('programme_level', '').strip()
 
+            if not programme or not level_str:
+                flash("❌ Programme and level are required for students.", 'danger')
+                return redirect(url_for('admin.register_user'))
+
+            try:
+                programme_level = int(level_str)
+            except ValueError:
+                flash("❌ Invalid programme level.", 'danger')
+                return redirect(url_for('admin.register_user'))
+
+            prefix = 'STD'
+            count = User.query.filter_by(role='student').count() + 1
+            while User.query.filter_by(user_id=f"{prefix}{count:03d}").first():
+                count += 1
+            user_id = f"{prefix}{count:03d}"
+
+            new_user = User(
+                user_id=user_id,
+                username=username,
+                email=email,
+                first_name=first_name,
+                middle_name=middle_name,
+                last_name=last_name,
+                role='student',
+                profile_picture=profile_picture
+            )
+            new_user.set_password(temp_password)
+            db.session.add(new_user)
+            db.session.flush()
+
+            dob_str = request.form.get('dob', '').strip()
+            dob = datetime.strptime(dob_str, '%Y-%m-%d') if dob_str else None
+            db.session.add(StudentProfile(
+                user_id=user_id,
+                dob=dob,
+                gender=request.form.get('gender', '').strip(),
+                nationality=request.form.get('nationality', '').strip(),
+                phone=request.form.get('phone', '').strip(),
+                email=email or '',
+                current_programme=programme,
+                programme_level=programme_level,
+                study_format=request.form.get('study_format', 'Regular').strip(),
+                academic_year=configured_academic_year(),
+                semester=request.form.get('semester', '').strip(),
+                index_number=request.form.get('index_number', '').strip() or None,
+                admission_date=datetime.now().date()
+            ))
+            db.session.commit()
+            flash(
+                f"✅ Student registered! Student ID: {user_id} | Username: {username} | Password: {temp_password}",
+                'success'
+            )
+            return redirect(url_for('admin.dashboard'))
 
         # ======================================================
 
@@ -2534,6 +2573,107 @@ def register_user():
 
         return redirect(url_for('admin.register_user'))
 
+
+
+@admin_bp.route('/users')
+@login_required
+def manage_users():
+    """List student and teacher accounts that a superadmin can edit."""
+    if not isinstance(current_user, Admin) or not current_user.is_superadmin:
+        abort(403)
+
+    users = User.query.filter(User.role.in_(['student', 'teacher'])).order_by(
+        User.last_name, User.first_name
+    ).all()
+    return render_template('admin/manage_users.html', users=users)
+
+
+@admin_bp.route('/users/<string:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_user(user_id):
+    """Update a student or teacher account and its related profile."""
+    if not isinstance(current_user, Admin) or not current_user.is_superadmin:
+        abort(403)
+
+    user = User.query.filter_by(user_id=user_id).first_or_404()
+    if user.role not in {'student', 'teacher'}:
+        abort(403)
+
+    profile = user.student_profile if user.role == 'student' else user.teacher_profile
+
+    if request.method == 'POST':
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '').strip()
+
+        if not first_name or not last_name or not email:
+            flash('First name, last name, and email are required.', 'danger')
+            return redirect(url_for('admin.edit_user', user_id=user.user_id))
+
+        duplicate_email = User.query.filter(
+            User.email == email, User.user_id != user.user_id
+        ).first()
+        if duplicate_email or Admin.query.filter_by(email=email).first():
+            flash('That email address is already in use.', 'danger')
+            return redirect(url_for('admin.edit_user', user_id=user.user_id))
+
+        user.first_name = first_name
+        user.middle_name = request.form.get('middle_name', '').strip() or None
+        user.last_name = last_name
+        user.email = email
+
+        if password:
+            if len(password) < 8:
+                flash('Password must be at least 8 characters.', 'danger')
+                return redirect(url_for('admin.edit_user', user_id=user.user_id))
+            user.set_password(password)
+
+        if profile:
+            dob_value = request.form.get('dob', '').strip()
+            try:
+                profile.dob = datetime.strptime(dob_value, '%Y-%m-%d').date() if dob_value else None
+            except ValueError:
+                flash('Date of birth must be a valid date.', 'danger')
+                return redirect(url_for('admin.edit_user', user_id=user.user_id))
+            profile.gender = request.form.get('gender', '').strip() or None
+            profile.phone = request.form.get('phone', '').strip() or None
+
+            if user.role == 'student':
+                profile.current_programme = request.form.get('current_programme', '').strip()
+                level = request.form.get('programme_level', '').strip()
+                if not profile.current_programme or not level:
+                    flash('Programme and level are required for students.', 'danger')
+                    return redirect(url_for('admin.edit_user', user_id=user.user_id))
+                try:
+                    profile.programme_level = int(level)
+                except ValueError:
+                    flash('Programme level must be a number.', 'danger')
+                    return redirect(url_for('admin.edit_user', user_id=user.user_id))
+                profile.study_format = request.form.get('study_format', '').strip() or None
+                profile.academic_year = request.form.get('academic_year', '').strip() or None
+                profile.semester = request.form.get('semester', '').strip() or None
+                profile.index_number = request.form.get('index_number', '').strip() or None
+            else:
+                profile.nationality = request.form.get('nationality', '').strip() or None
+                profile.qualification = request.form.get('qualification', '').strip() or None
+                profile.specialization = request.form.get('specialization', '').strip() or None
+                profile.department = request.form.get('department', '').strip() or None
+                profile.employment_type = request.form.get('employment_type', '').strip() or None
+
+        try:
+            db.session.commit()
+            flash(f'{user.full_name} was updated successfully.', 'success')
+        except (ValueError, IntegrityError) as exc:
+            db.session.rollback()
+            logger.warning('Failed updating user %s: %s', user.user_id, exc)
+            flash('Could not save the changes. Check the values and try again.', 'danger')
+        return redirect(url_for('admin.edit_user', user_id=user.user_id))
+
+    programmes = [p for p in CERTIFICATE_PROGRAMMES + DIPLOMA_PROGRAMMES if p[0]]
+    return render_template(
+        'admin/edit_user.html', user=user, profile=profile, programmes=programmes
+    )
 
 
 # ============================================================
@@ -2838,6 +2978,37 @@ def clean(n):
 
     return re.sub(r'[^a-zA-Z]', '', (n or '')).lower().strip()
 
+
+
+def generate_unique_email(first_name, middle_name, last_name, role):
+    """Generate a unique role-specific institutional email address."""
+    first = clean(first_name)
+    middle = clean(middle_name)
+    last = clean(last_name)
+
+    if not first and middle:
+        first, middle = middle, ''
+    if not first or not last:
+        raise ValueError("First name and last name are required")
+
+    local_part = first[0] + (middle[0] if middle else '') + last
+    domain_map = {
+        'student': 'st.vtiu.edu.gh',
+        'teacher': 'tch.vtiu.edu.gh',
+        'finance_admin': 'finance.vtiu.edu.gh',
+        'academic_admin': 'academics.vtiu.edu.gh',
+        'admissions_admin': 'admissions.vtiu.edu.gh',
+        'superadmin': 'admin.vtiu.edu.gh',
+    }
+    domain = domain_map.get(role.lower(), 'vtiu.edu.gh')
+
+    counter = 0
+    while True:
+        suffix = str(counter) if counter else ''
+        email = f"{local_part}{suffix}@{domain}"
+        if not User.query.filter_by(email=email).first() and not Admin.query.filter_by(email=email).first():
+            return email
+        counter += 1
 
 
 def generate_unique_username(first_name, middle_name, last_name, role):
@@ -5351,7 +5522,7 @@ def promote_all_students():
 
 
 
-@admin_bp.route('/admin/manage-promotions', methods=['GET', 'POST'])
+@admin_bp.route('/manage-promotions', methods=['GET', 'POST'])
 
 @login_required
 
@@ -5403,31 +5574,28 @@ def manage_promotions():
 
         programmes = db.session.query(
 
-            StudentProfile.programme_code,
-
-            StudentProfile.programme_name
+            StudentProfile.current_programme
 
         ).distinct().all()
 
         programmes = [
 
-            {'programme_code': p[0], 'programme_name': p[1]} 
+            {'programme_code': p[0], 'programme_name': p[0]}
 
             for p in programmes if p[0]
 
         ]
 
-        
-
+        ensure_promotion_tables()
         # Get courses
 
-        courses = Course.query.all() if hasattr(db.Model, 'Course') else []
+        courses = Course.query.all()
 
         
 
         return render_template(
 
-            'admin/manage_promotions.html',
+            'admin/promotions.html',
 
             current_year=current_year,
 
@@ -5611,13 +5779,18 @@ def get_promotion_candidates(academic_year, filters=None):
 
     if filters.get('programmes'):
 
-        query = query.filter(StudentProfile.programme_code.in_(filters['programmes']))
+        query = query.filter(StudentProfile.current_programme.in_(filters['programmes']))
 
     
 
     if filters.get('levels'):
 
-        query = query.filter(StudentProfile.programme_level.in_(filters['levels']))
+        query = query.filter(StudentProfile.programme_level.in_(
+            [int(level) for level in filters['levels']]
+        ))
+
+    if filters.get('statuses'):
+        query = query.filter(StudentProfile.academic_status.in_(filters['statuses']))
 
     
 
@@ -5653,7 +5826,7 @@ def get_promotion_candidates(academic_year, filters=None):
 
             'name': user.full_name if user else 'Unknown',
 
-            'programme': student.programme_name,
+            'programme': student.current_programme,
 
             'level': student.programme_level,
 
@@ -5689,7 +5862,7 @@ def api_get_promotion_candidates():
 
     
 
-    academic_year = request.form.get('academic_year')
+    academic_year = configured_academic_year()
 
     if not academic_year:
 
@@ -5733,6 +5906,22 @@ def api_get_promotion_candidates():
 
         }
 
+    })
+
+
+@admin_bp.route('/promotion-candidates/<student_id>', methods=['GET'])
+@login_required
+def api_get_student_vetting_details(student_id):
+    """Return the student details required by the promotion review modal."""
+    student = StudentProfile.query.filter_by(user_id=student_id).first_or_404()
+    user = User.query.filter_by(user_id=student_id).first()
+    return jsonify({
+        'student_id': student_id,
+        'name': user.full_name if user else 'Unknown',
+        'programme': student.current_programme,
+        'gpa': calculate_yearly_gpa(student_id, request.args.get('academic_year'))
+        if request.args.get('academic_year') else 0,
+        'courses': [],
     })
 
 
@@ -7244,7 +7433,10 @@ def assign_fees():
     CLASS_LEVELS = ['100', '200', '300', '400']  # Fixed format
 
     # Get current percentage settings
-    current_year = str(datetime.now().year)
+    current_year = configured_academic_year()
+    if not current_year:
+        flash("Configure the academic year dates before creating fees.", "warning")
+        return redirect(url_for('admin.manage_events'))
     current_settings = FeePercentageSettings.get_active_settings(current_year)
 
 
@@ -7253,7 +7445,7 @@ def assign_fees():
 
         # Handle percentage settings form
         if 'base_payment_percentage' in request.form:
-            academic_year = request.form.get('academic_year')
+            academic_year = current_year
             base_percentage = float(request.form.get('base_payment_percentage'))
             deadline_str = request.form.get('base_payment_deadline')
             allow_installments = 'allow_installments_after_base' in request.form
@@ -7293,7 +7485,7 @@ def assign_fees():
         # Handle regular fee assignment form
         programme_name = request.form.get('programme_name')
 
-        programme_level = request.form.get('class_level')  # ✅ rename
+        programme_level = request.form.get('programme_level') or request.form.get('class_level')
 
         study_format = request.form.get('study_format') or 'Regular'
 
@@ -7302,10 +7494,15 @@ def assign_fees():
         semester = request.form.get('semester')
 
         group_title = request.form.get('group_title') or 'Default'
+        paystack_mode = request.form.get('paystack_mode', 'test').strip().lower()
+
+        if paystack_mode not in {'test', 'live'}:
+            flash("Invalid Paystack mode.", "danger")
+            return redirect(url_for('admin.assign_fees'))
 
 
 
-        if not programme_name or not programme_level or not academic_year_id or not semester:
+        if not programme_name or not programme_level or not semester:
 
             flash("Missing required fields.", "danger")
 
@@ -7315,9 +7512,7 @@ def assign_fees():
 
         # Format as single year only
 
-        academic_year_obj = AcademicYear.query.get(academic_year_id)
-
-        academic_year_str = str(academic_year_obj.start_date.year) if academic_year_obj else str(datetime.now().year)
+        academic_year_str = current_year
 
 
 
@@ -7397,7 +7592,9 @@ def assign_fees():
 
             amount=round(total, 2),
 
-            items=json.dumps(items)
+            items=json.dumps(items),
+
+            paystack_mode=paystack_mode
 
         )
 
@@ -7715,7 +7912,7 @@ def edit_fee_group(group_id):
     CLASS_LEVELS = ['100 Level', '200 Level', '300 Level', '400 Level']
     
     # Get percentage settings for the fee group's academic year
-    group_academic_year = group.academic_year if group else str(datetime.now().year)
+    group_academic_year = configured_academic_year() or group.academic_year
     print(f"DEBUG: Fee group academic_year: {group_academic_year}")
     current_settings = FeePercentageSettings.get_active_settings(group_academic_year)
     print(f"DEBUG: Retrieved current_settings: {current_settings}")
@@ -7728,7 +7925,7 @@ def edit_fee_group(group_id):
         
         # Handle percentage settings form
         if request.form.get('save_percentage_settings'):
-            academic_year = request.form.get('academic_year')
+            academic_year = configured_academic_year()
             base_percentage = float(request.form.get('base_payment_percentage'))
             deadline_str = request.form.get('base_payment_deadline')
             allow_installments = 'allow_installments_after_base' in request.form
@@ -7774,8 +7971,7 @@ def edit_fee_group(group_id):
             group.study_format = request.form.get('study_format')
 
             # Keep single year format
-            academic_year_obj = AcademicYear.query.get(request.form.get('academic_year'))
-            group.academic_year = str(academic_year_obj.start_date.year) if academic_year_obj else str(datetime.now().year)
+            group.academic_year = configured_academic_year() or group.academic_year
 
             group.semester = request.form.get('semester')
             group.description = request.form.get('group_title') or group.description
@@ -8344,7 +8540,7 @@ def add_assessment_period():
         abort(403)
 
     if request.method == 'POST':
-        academic_year = request.form.get('academic_year')
+        academic_year = configured_academic_year()
         semester = request.form.get('semester')
         start_date = datetime.strptime(request.form.get('start_date'), "%Y-%m-%d").date()
         end_date = datetime.strptime(request.form.get('end_date'), "%Y-%m-%d").date()

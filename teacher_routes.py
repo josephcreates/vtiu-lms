@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, abort, flash, redirect, url_for, r
 from flask_login import login_required, current_user, login_user
 import requests
 from wtforms import SelectField
-from models import CourseAssessmentScheme, CourseMaterial, ExamOption, ExamQuestion, ExamSet, ExamSetQuestion, Meeting, Option, Question, SemesterResultRelease, db, TeacherProfile, Course, StudentCourseRegistration, TeacherCourseAssignment, AttendanceRecord, User, StudentProfile, AcademicCalendar, AcademicYear, AppointmentBooking, AppointmentSlot, Assignment, Quiz, StudentQuizSubmission, Exam, ExamSubmission, AssignmentSubmission, GradingScale, ExamTimetableEntry, TeacherAssessment, TeacherAssessmentAnswer, TeacherAssessmentPeriod
+from models import CourseAssessmentScheme, CourseMaterial, ExamOption, ExamQuestion, ExamSet, ExamSetQuestion, Meeting, Option, Question, SemesterResultRelease, db, TeacherProfile, Course, StudentCourseRegistration, TeacherCourseAssignment, AttendanceRecord, User, StudentProfile, AcademicCalendar, AcademicYear, AppointmentBooking, AppointmentSlot, Assignment, Quiz, StudentQuizSubmission, Exam, ExamSubmission, AssignmentSubmission, GradingScale, ExamTimetableEntry, TeacherAssessment, TeacherAssessmentAnswer, TeacherAssessmentPeriod, Conversation
 from forms import AssignmentForm, ChangePasswordForm, ExamForm, ExamQuestionForm, ExamSetForm, MaterialForm, MeetingForm, QuizForm, TeacherLoginForm
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, date
@@ -18,6 +18,7 @@ from utils.notifications import create_assignment_notification
 from utils.notification_engine import notify_quiz_created, notify_assignment_created, notify_assignment_graded
 import os, uuid
 from utils.helpers import get_programme_choices, get_level_choices, get_course_choices
+from utils.academic_year import configured_academic_year
 from wtforms.validators import DataRequired 
 from services.semester_grading_service import SemesterGradingService
 import logging
@@ -177,7 +178,7 @@ def assessment_scheme(course_id):
     # Determine current academic year from SchoolSettings
     from models import SchoolSettings
     settings = SchoolSettings.query.first()
-    academic_year = str(settings.current_academic_year) if settings else str(date.today().year)
+    academic_year = configured_academic_year()
 
     # Fetch or create scheme
     scheme = CourseAssessmentScheme.query.filter_by(course_id=course_id, teacher_id=profile.id).first()
@@ -289,7 +290,7 @@ def add_material():
 
     # Populate programme choices
     form.programme_name.choices = [
-        ('', '— Select Programme —'),
+        ('', 'Select Programme'),
         ('Cyber Security', 'Cyber Security'),
         ('Early Childhood Education', 'Early Childhood Education'),
         ('Dispensing Technician II & III', 'Dispensing Technician II & III'),
@@ -304,20 +305,16 @@ def add_material():
         ('Diploma in Early Childhood Education', 'Diploma in Early Childhood Education')
     ]
 
-    # Populate level choices
     form.programme_level.choices = [
-        ('', '— Select Level —'),
+        ('', 'Select Level'),
         ('100', 'Level 100'),
         ('200', 'Level 200'),
         ('300', 'Level 300'),
         ('400', 'Level 400')
     ]
 
-    # Get selected values from form data (POST) or form object
     selected_programme = request.form.get('programme_name', '') or form.programme_name.data or ''
     selected_level = request.form.get('programme_level', '') or form.programme_level.data or ''
-
-    # Load courses based on programme + level
     course_list = []
     if selected_programme and selected_level:
         course_list = Course.query.filter_by(
@@ -325,37 +322,24 @@ def add_material():
             programme_level=selected_level
         ).order_by(Course.name).all()
 
-    # Update course choices
-    form.course_name.choices = [('', '— Select Course (Optional) —')] + [
-        (c.name, f"{c.code} — {c.name}") for c in course_list
+    form.course_name.choices = [('', 'Select Course (Optional)')] + [
+        (c.name, f"{c.code} - {c.name}") for c in course_list
     ]
 
-    # Handle GET request - just show the form
     if request.method == 'GET':
         return render_template('teacher/add_materials.html', form=form)
 
-    # ============ HANDLE POST REQUEST ============
-    print("\n" + "="*60)
-    print("MATERIALS FORM SUBMISSION DEBUG")
-    print("="*60)
-    print(f"Form validates: {form.validate()}")
-    if form.errors:
-        print(f"Form Errors: {form.errors}")
+    if not form.validate():
         for field, errors in form.errors.items():
             flash(f"{field}: {', '.join(errors)}", "danger")
         return render_template('teacher/add_materials.html', form=form)
 
-    print("Form is valid")
-    print("="*60 + "\n")
-
     try:
-        # Extract form data
         programme_name = form.programme_name.data.strip()
         programme_level = form.programme_level.data.strip()
         title = form.title.data.strip()
         course_name = form.course_name.data
 
-        # Get course if selected
         course = None
         if course_name and str(course_name).strip():
             course = Course.query.filter_by(
@@ -363,7 +347,6 @@ def add_material():
                 programme_name=programme_name,
                 programme_level=programme_level
             ).first()
-            
             if not course:
                 flash("Selected course not found.", "danger")
                 return render_template('teacher/add_materials.html', form=form)
@@ -1956,7 +1939,7 @@ def submit_for_vetting():
         return redirect(url_for('teacher.view_results_combined'))
 
     # Get parameters from form
-    academic_year = request.form.get('academic_year', '').strip()
+    academic_year = configured_academic_year()
     semester = request.form.get('semester', '').strip()
 
     if not academic_year or not semester:
@@ -2127,82 +2110,31 @@ def meetings():
 # Add new meeting
 # -------------------------
 # -------------------------
-# Zoom helpers
+# Agora meeting helpers
 # -------------------------
 import requests
 from flask import current_app
 from requests.auth import HTTPBasicAuth
 
-def get_zoom_access_token():
-    """
-    Get access token from Zoom (Server-to-Server OAuth)
-    """
-    url = "https://zoom.us/oauth/token"
 
-    client_id = current_app.config.get("ZOOM_CLIENT_ID")
-    client_secret = current_app.config.get("ZOOM_CLIENT_SECRET")
-    account_id = current_app.config.get("ZOOM_ACCOUNT_ID")
+def create_agora_channel():
+    """Create a unique eight-character random alphanumeric Room ID."""
+    import secrets
+    import string
+    alphabet = string.ascii_uppercase + string.digits
+    while True:
+        room_code = ''.join(secrets.choice(alphabet) for _ in range(8))
+        if not Meeting.query.filter_by(meeting_code=room_code).first():
+            return room_code
 
-    if not client_id or not client_secret:
-        raise Exception("Zoom client credentials are not configured (ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET)")
 
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-
-    # If an account_id is provided, try the account_credentials flow first
-    if account_id:
-        data = {"grant_type": "account_credentials", "account_id": account_id}
-        resp = requests.post(url, data=data, auth=HTTPBasicAuth(client_id, client_secret), headers=headers)
-        current_app.logger.info(f"Zoom token (account_credentials) response: {resp.status_code} - {resp.text}")
-        if resp.status_code == 200:
-            token_data = resp.json()
-            current_app.logger.info(f"Zoom token keys: {list(token_data.keys())}")
-            return token_data.get("access_token")
-
-    # Fallback: standard client_credentials grant (Server-to-Server OAuth)
-    data = {"grant_type": "client_credentials"}
-    resp = requests.post(url, data=data, auth=HTTPBasicAuth(client_id, client_secret), headers=headers)
-    current_app.logger.info(f"Zoom token (client_credentials) response: {resp.status_code} - {resp.text}")
-    if resp.status_code != 200:
-        current_app.logger.error(f"Zoom token error: {resp.status_code} - {resp.text}")
-        raise Exception(f"Failed to get Zoom token: {resp.status_code} - {resp.text}")
-
-    token_data = resp.json()
-    current_app.logger.info(f"Zoom token keys: {list(token_data.keys())}")
-    return token_data.get("access_token")
-
-def create_zoom_meeting(topic, start_time, duration_min=60):
-    token = get_zoom_access_token()
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    body = {
-        "topic": topic,
-        "type": 2,
-        "start_time": start_time.isoformat(),
-        "duration": duration_min,
-        "settings": {
-            "join_before_host": True,
-            "mute_upon_entry": True
-        }
-    }
-
-    url = "https://api.zoom.us/v2/users/me/meetings"
-    response = requests.post(url, headers=headers, json=body)
-
-    if response.status_code == 201:
-        return response.json()
-
-    # Log details for debugging (do not log full token in production)
-    token_preview = (token[:20] + "...") if token else "<no-token>"
-    current_app.logger.error(
-        f"Zoom meeting creation error: {response.status_code} - {response.text} - token_preview={token_preview}"
-    )
-
-    if response.status_code == 401:
-        raise Exception(f"Failed to create Zoom meeting: {response.status_code} - {response.text}")
-
-    response.raise_for_status()
+# Legacy Zoom API helpers are intentionally disabled. Restore from git history
+# only if a future rollback is required.
+# def get_zoom_access_token():
+#     ...
+#
+# def create_zoom_meeting(topic, start_time, duration_min=60):
+#     ...
 
 
 # -------------------------
@@ -2219,26 +2151,82 @@ def add_meeting():
     form.course_id.choices = [(a.course.id, a.course.name) for a in profile.assignments]
 
     if form.validate_on_submit():
-        duration = int((form.scheduled_end.data - form.scheduled_start.data).total_seconds() // 60)
-        zoom_meeting = create_zoom_meeting(form.title.data, form.scheduled_start.data, duration)
-
-        meeting = Meeting(
-            title=form.title.data,
-            description=form.description.data,
-            host_id=current_user.user_id,
-            course_id=form.course_id.data,
-            meeting_code=zoom_meeting["id"],
-            scheduled_start=form.scheduled_start.data,
-            scheduled_end=form.scheduled_end.data,
-            join_url=zoom_meeting["join_url"],
-            start_url=zoom_meeting["start_url"]
-        )
-        db.session.add(meeting)
-        db.session.commit()
-        flash("Zoom meeting created successfully!", "success")
+        try:
+            meeting = Meeting(
+                title=form.title.data,
+                description=form.description.data,
+                host_id=current_user.id,
+                course_id=form.course_id.data,
+                meeting_code=create_agora_channel(),
+                scheduled_start=form.scheduled_start.data,
+                scheduled_end=form.scheduled_end.data,
+            )
+            db.session.add(meeting)
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.exception('Failed to create Agora classroom: %s', exc)
+            flash('Could not create the live class. Please try again.', 'danger')
+            return render_template('teacher/meeting_form.html', form=form)
+        flash("Agora live class created successfully!", "success")
         return redirect(url_for("teacher.meetings"))
 
     return render_template("teacher/meeting_form.html", form=form)
+
+
+@teacher_bp.route('/meetings/<int:meeting_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_meeting(meeting_id):
+    if current_user.role != 'teacher':
+        abort(403)
+
+    meeting = Meeting.query.filter_by(
+        id=meeting_id,
+        host_id=current_user.id,
+    ).first_or_404()
+    profile = TeacherProfile.query.filter_by(user_id=current_user.user_id).first()
+    if not profile:
+        flash('Please complete your profile first.', 'warning')
+        return redirect(url_for('teacher.dashboard'))
+
+    form = MeetingForm(obj=meeting)
+    form.course_id.choices = [(a.course.id, a.course.name) for a in profile.assignments]
+
+    if form.validate_on_submit():
+        if form.scheduled_end.data <= form.scheduled_start.data:
+            form.scheduled_end.errors.append('End time must be after the start time.')
+        else:
+            meeting.title = form.title.data
+            meeting.description = form.description.data
+            meeting.course_id = form.course_id.data
+            meeting.scheduled_start = form.scheduled_start.data
+            meeting.scheduled_end = form.scheduled_end.data
+            db.session.commit()
+            flash('Meeting updated successfully.', 'success')
+            return redirect(url_for('teacher.meetings'))
+
+    return render_template('teacher/meeting_form.html', form=form, meeting=meeting)
+
+
+@teacher_bp.route('/meetings/<int:meeting_id>/delete', methods=['POST'])
+@login_required
+def delete_meeting(meeting_id):
+    if current_user.role != 'teacher':
+        abort(403)
+
+    meeting = Meeting.query.filter_by(
+        id=meeting_id,
+        host_id=current_user.id,
+    ).first_or_404()
+
+    for conversation in Conversation.query.filter_by(type='class').all():
+        if (conversation.get_meta() or {}).get('meeting_id') == meeting.id:
+            db.session.delete(conversation)
+
+    db.session.delete(meeting)
+    db.session.commit()
+    flash('Meeting deleted successfully.', 'success')
+    return redirect(url_for('teacher.meetings'))
 
 
 # Exams Management

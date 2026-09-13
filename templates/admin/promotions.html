@@ -22,7 +22,7 @@
     <div class="promotion-grid">
         <!-- LEFT: FILTERS & PREVIEW -->
         <div class="filter-panel">
-            <form id="filterForm" method="POST" action="{{ url_for('admin.get_promotion_candidates') }}">
+            <form id="filterForm" method="POST" action="{{ url_for('admin.api_get_promotion_candidates') }}">
                 <div class="filter-section">
                     <h3><i class="fas fa-sliders-h"></i> Filter Students</h3>
                     
@@ -80,7 +80,7 @@
                         <select id="course" name="course" class="form-control select-multi" multiple>
                             <option value="">-- Select Courses --</option>
                             {% for course in courses %}
-                                <option value="{{ course.course_code }}">{{ course.course_code }} - {{ course.course_name }}</option>
+                                <option value="{{ course.code }}">{{ course.code }} - {{ course.name }}</option>
                             {% endfor %}
                         </select>
                         <small class="form-text text-muted">Hold Ctrl to select multiple</small>
@@ -820,7 +820,9 @@ function updateBulkActions() {
 function openVettingModal(studentId) {
     const modal = new bootstrap.Modal(document.getElementById('vettingModal'));
     // Load student details via AJAX
-    fetch(`{{ url_for('admin.get_student_vetting_details') }}?student_id=${studentId}`)
+    const detailsUrl = `{{ url_for('admin.api_get_student_vetting_details', student_id='__STUDENT_ID__') }}`
+        .replace('__STUDENT_ID__', encodeURIComponent(studentId));
+    fetch(`${detailsUrl}?academic_year=${encodeURIComponent(document.getElementById('academicYear').value)}`)
         .then(r => r.json())
         .then(data => {
             document.getElementById('vettingModalBody').innerHTML = `
@@ -845,7 +847,7 @@ function openVettingModal(studentId) {
 
 function approveStudent(studentId) {
     // AJAX call to approve
-    fetch(`{{ url_for('admin.approve_for_promotion') }}`, {
+    fetch(`{{ url_for('admin.api_approve_promotion') }}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({student_id: studentId})
@@ -854,7 +856,7 @@ function approveStudent(studentId) {
 
 function rejectStudent(studentId) {
     // AJAX call to reject
-    fetch(`{{ url_for('admin.reject_promotion') }}`, {
+    fetch(`{{ url_for('admin.api_reject_promotion') }}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({student_id: studentId})
@@ -872,7 +874,7 @@ document.getElementById('confirmPromotionBtn').addEventListener('click', functio
     const studentIds = Array.from(document.querySelectorAll('.student-checkbox:checked'))
         .map(cb => cb.dataset.studentId);
     
-    fetch(`{{ url_for('admin.promote_students_bulk') }}`, {
+    fetch(`{{ url_for('admin.api_bulk_promote_students') }}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({student_ids: studentIds})

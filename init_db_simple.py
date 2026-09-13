@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple database initialization for Render.com
+Simple database initialization for Railway
 """
 import os
 from flask import Flask

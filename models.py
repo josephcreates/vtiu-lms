@@ -1700,7 +1700,7 @@ class PasswordResetToken(db.Model):
 
 class ProgrammeCohort(db.Model):
 
-    __tablename__ = 'programme_cohorts'
+    __tablename__ = 'programme_cohort'
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -1722,7 +1722,7 @@ class ProgrammeCohort(db.Model):
 
 class SchoolSettings(db.Model):
 
-    __tablename__ = "school_settings"
+    __tablename__ = "school_setting"
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -1771,6 +1771,10 @@ class StudentProfile(db.Model):
     last_level_completed = db.Column(db.Integer, nullable=True)  # Last successfully completed level
 
     academic_status = db.Column(db.String(50), default='Active')  # Active, Probation, Graduated, Suspended
+
+    vetting_status = db.Column(db.String(20), default='pending', nullable=False)
+
+    rejection_reason = db.Column(db.Text, nullable=True)
 
     last_score = db.Column(db.Float, nullable=True)  # Last cumulative score
 
@@ -1883,6 +1887,7 @@ class ProgrammeFeeStructure(db.Model):
     description = db.Column(db.String(255), nullable=False, default='Default')
 
     amount = db.Column(db.Float, nullable=False, default=0.0)
+    paystack_mode = db.Column(db.String(10), nullable=False, default='test')
 
 
 
@@ -1963,6 +1968,9 @@ class StudentFeeTransaction(db.Model):
     is_approved = db.Column(db.Boolean, default=False)
 
     reviewed_by_admin_id = db.Column(db.Integer, db.ForeignKey('admin.id'))
+    payment_method = db.Column(db.String(30), nullable=True)
+    paystack_mode = db.Column(db.String(10), nullable=True)
+    paystack_reference = db.Column(db.String(100), unique=True, nullable=True)
 
 
 
@@ -2036,7 +2044,7 @@ class StudentFeeBalance(db.Model):
 class FeePercentageSettings(db.Model):
     """Global fee percentage settings for base payment requirements"""
     
-    __tablename__ = 'fee_percentage_settings'
+    __tablename__ = 'fee_percentage_setting'
     
     id = db.Column(db.Integer, primary_key=True)
     
@@ -2158,7 +2166,7 @@ class Question(db.Model):
 
 
 
-    correct_option_id = db.Column(db.Integer, db.ForeignKey('options.id'), nullable=True)
+    correct_option_id = db.Column(db.Integer, db.ForeignKey('option.id'), nullable=True)
 
 
 
@@ -2172,7 +2180,7 @@ class Question(db.Model):
 
 class Option(db.Model):
 
-    __tablename__ = 'options'
+    __tablename__ = 'option'
 
     
 
@@ -2196,13 +2204,13 @@ class Option(db.Model):
 
 class StudentAnswer(db.Model):
 
-    __tablename__ = 'student_answers'
+    __tablename__ = 'student_answer'
 
     
 
     id = db.Column(db.Integer, primary_key=True)
 
-    attempt_id = db.Column(db.Integer, db.ForeignKey('quiz_attempt.id', ondelete='CASCADE'), nullable=False, index=True)
+    attempt_id = db.Column(db.Integer, db.ForeignKey('quiz_attempt.id', ondelete='CASCADE'), nullable=False)
 
     question_id = db.Column(db.Integer, db.ForeignKey('question.id', ondelete='CASCADE'), nullable=False, index=True)
 
@@ -2210,7 +2218,7 @@ class StudentAnswer(db.Model):
 
     student_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
 
-    selected_option_id = db.Column(db.Integer, db.ForeignKey('options.id', ondelete='SET NULL'), nullable=True)
+    selected_option_id = db.Column(db.Integer, db.ForeignKey('option.id', ondelete='SET NULL'), nullable=True)
 
     answer_text = db.Column(db.Text, nullable=True)
 
@@ -2242,11 +2250,11 @@ class StudentAnswer(db.Model):
 
         db.UniqueConstraint('attempt_id', 'question_id', name='uq_attempt_question'),
 
-        db.Index('ix_student_answers_attempt_id', 'attempt_id'),
+        db.Index('ix_student_answer_attempt_id', 'attempt_id'),
 
-        db.Index('ix_student_answers_student_id', 'student_id'),
+        db.Index('ix_student_answer_student_id', 'student_id'),
 
-        db.Index('ix_student_answers_quiz_id', 'quiz_id'),
+        db.Index('ix_student_answer_quiz_id', 'quiz_id'),
 
     )
 
@@ -2374,7 +2382,7 @@ class QuizAttempt(db.Model):
 
 class StudentQuizSubmission(db.Model):
 
-    __tablename__ = 'student_quiz_submissions'
+    __tablename__ = 'student_quiz_submission'
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -2394,7 +2402,7 @@ class StudentQuizSubmission(db.Model):
 
 class Assignment(db.Model):
 
-    __tablename__ = 'assignments'
+    __tablename__ = 'assignment'
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -2444,11 +2452,11 @@ class Assignment(db.Model):
 
 class AssignmentSubmission(db.Model):
 
-    __tablename__ = 'assignment_submissions'
+    __tablename__ = 'assignment_submission'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    assignment_id = db.Column(db.Integer, db.ForeignKey('assignments.id'), nullable=False)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('assignment.id'), nullable=False)
 
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
@@ -2959,7 +2967,7 @@ class AppointmentBooking(db.Model):
 # Exam-related models
 # ============================
 class Exam(db.Model):
-    __tablename__ = 'exams'
+    __tablename__ = 'exam'
     id = db.Column(db.Integer, primary_key=True)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
     title = db.Column(db.String(255), nullable=False)
@@ -2987,10 +2995,10 @@ class Exam(db.Model):
 
 
 class ExamSet(db.Model):
-    __tablename__ = "exam_sets"
+    __tablename__ = "exam_set"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
-    exam_id = db.Column(db.Integer, db.ForeignKey("exams.id"), nullable=False)
+    exam_id = db.Column(db.Integer, db.ForeignKey("exam.id"), nullable=False)
     max_score = db.Column(db.Float, nullable=True)
     access_password = db.Column(db.String(128), nullable=True)
 
@@ -3010,11 +3018,11 @@ class ExamSet(db.Model):
 
 class ExamQuestion(db.Model):
 
-    __tablename__ = "exam_questions"
+    __tablename__ = "exam_question"
 
     id = db.Column(db.Integer, primary_key=True)
 
-    exam_id = db.Column(db.Integer, db.ForeignKey("exams.id"), nullable=False)
+    exam_id = db.Column(db.Integer, db.ForeignKey("exam.id"), nullable=False)
 
     question_text = db.Column(db.Text, nullable=False)
 
@@ -3038,13 +3046,13 @@ class ExamQuestion(db.Model):
 
 class ExamSetQuestion(db.Model):
 
-    __tablename__ = 'exam_set_questions'
+    __tablename__ = 'exam_set_question'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    set_id = db.Column(db.Integer, db.ForeignKey("exam_sets.id"), nullable=False)
+    set_id = db.Column(db.Integer, db.ForeignKey("exam_set.id"), nullable=False)
 
-    question_id = db.Column(db.Integer, db.ForeignKey("exam_questions.id"), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey("exam_question.id"), nullable=False)
 
     order = db.Column(db.Integer, nullable=True)
 
@@ -3056,11 +3064,11 @@ class ExamSetQuestion(db.Model):
 
 class ExamOption(db.Model):
 
-    __tablename__ = 'exam_options'
+    __tablename__ = 'exam_option'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    question_id = db.Column(db.Integer, db.ForeignKey('exam_questions.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('exam_question.id'), nullable=False)
 
     text = db.Column(db.String(255), nullable=False)
 
@@ -3082,13 +3090,13 @@ class ExamOption(db.Model):
 
 class ExamAttempt(db.Model):
 
-    __tablename__ = 'exam_attempts'
+    __tablename__ = 'exam_attempt'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id'), nullable=False)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
 
-    set_id = db.Column(db.Integer, db.ForeignKey('exam_sets.id'), nullable=True)
+    set_id = db.Column(db.Integer, db.ForeignKey('exam_set.id'), nullable=True)
 
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
@@ -3118,15 +3126,15 @@ class ExamAttempt(db.Model):
 
 class ExamSubmission(db.Model):
 
-    __tablename__ = 'exam_submissions'
+    __tablename__ = 'exam_submission'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id'), nullable=False)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
 
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-    set_id = db.Column(db.Integer, db.ForeignKey('exam_sets.id'), nullable=True)
+    set_id = db.Column(db.Integer, db.ForeignKey('exam_set.id'), nullable=True)
 
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -3164,15 +3172,15 @@ class ExamSubmission(db.Model):
 
 class ExamAnswer(db.Model):
 
-    __tablename__ = 'exam_answers'
+    __tablename__ = 'exam_answer'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    submission_id = db.Column(db.Integer, db.ForeignKey('exam_submissions.id'), nullable=False)
+    submission_id = db.Column(db.Integer, db.ForeignKey('exam_submission.id'), nullable=False)
 
-    question_id = db.Column(db.Integer, db.ForeignKey('exam_questions.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('exam_question.id'), nullable=False)
 
-    selected_option_id = db.Column(db.Integer, db.ForeignKey('exam_options.id'), nullable=True)
+    selected_option_id = db.Column(db.Integer, db.ForeignKey('exam_option.id'), nullable=True)
 
     answer_text = db.Column(db.Text, nullable=True)  # for subjective answers
 
@@ -3186,7 +3194,7 @@ class ExamAnswer(db.Model):
 
 class ExamTimetableEntry(db.Model):
 
-    __tablename__ = 'exam_timetable_entries'
+    __tablename__ = 'exam_timetable_entry'
 
     id = Column(Integer, primary_key=True)
 
@@ -3216,7 +3224,7 @@ class ExamTimetableEntry(db.Model):
 
 class Notification(db.Model):
 
-    __tablename__ = 'notifications'
+    __tablename__ = 'notification'
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -3302,11 +3310,11 @@ class Notification(db.Model):
 
 class NotificationRecipient(db.Model):
 
-    __tablename__ = 'notification_recipients'
+    __tablename__ = 'notification_recipient'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    notification_id = db.Column(db.Integer, db.ForeignKey('notifications.id'), nullable=False)
+    notification_id = db.Column(db.Integer, db.ForeignKey('notification.id'), nullable=False)
 
     user_id = db.Column(db.String(20), db.ForeignKey('user.user_id'), nullable=False)
 
@@ -3326,7 +3334,7 @@ class NotificationPreference(db.Model):
 
     """User notification preferences and settings"""
 
-    __tablename__ = 'notification_preferences'
+    __tablename__ = 'notification_preference'
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -3418,7 +3426,7 @@ class NotificationPreference(db.Model):
 
 class Meeting(db.Model):
 
-    __tablename__ = 'meetings'
+    __tablename__ = 'meeting'
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -3430,15 +3438,17 @@ class Meeting(db.Model):
 
     meeting_code = db.Column(db.String(80), unique=True, index=True, nullable=False)
 
+
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
 
     scheduled_start = db.Column(db.DateTime, nullable=True)
 
     scheduled_end = db.Column(db.DateTime, nullable=True)
 
-    join_url = db.Column(db.String(500))   # <-- Zoom join URL
+    # Legacy Zoom URLs retained for old records and rollback compatibility.
+    join_url = db.Column(db.String(500))
 
-    start_url = db.Column(db.String(500))  # <-- Zoom host start URL
+    start_url = db.Column(db.String(500))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -3454,7 +3464,7 @@ class Meeting(db.Model):
 
 class Recording(db.Model):
 
-    __tablename__ = 'recordings'
+    __tablename__ = 'recording'
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -3468,7 +3478,7 @@ class Recording(db.Model):
 
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'))
 
-    meeting_id = db.Column(db.Integer, db.ForeignKey('meetings.id'))
+    meeting_id = db.Column(db.Integer, db.ForeignKey('meeting.id'))
 
 
 

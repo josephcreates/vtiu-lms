@@ -13,6 +13,7 @@ from admissions.forms import CERTIFICATE_PROGRAMMES, DIPLOMA_PROGRAMMES, STUDY_F
 import logging
 import json
 from werkzeug.security import generate_password_hash
+from utils.academic_year import configured_academic_year
 
 logger = logging.getLogger(__name__)
 
@@ -217,13 +218,20 @@ def assign_fees():
         academic_year_id = request.form.get('academic_year')
         semester = request.form.get('semester')
         group_title = request.form.get('group_title') or 'Default'
+        paystack_mode = request.form.get('paystack_mode', 'test').strip().lower()
+
+        if paystack_mode not in {'test', 'live'}:
+            flash("Invalid Paystack mode.", "danger")
+            return redirect(url_for('finance.assign_fees'))
 
         if not programme_name or not programme_level or not academic_year_id or not semester:
             flash("Missing required fields.", "danger")
             return redirect(url_for('finance.assign_fees'))
 
-        academic_year_obj = AcademicYear.query.get(academic_year_id)
-        academic_year_str = str(academic_year_obj.start_date.year) if academic_year_obj else str(datetime.now().year)
+        academic_year_str = configured_academic_year()
+        if not academic_year_str:
+            flash("Configure the academic year dates before creating fees.", "warning")
+            return redirect(url_for('finance.assign_fees'))
 
         descriptions = request.form.getlist('description[]')
         amounts = request.form.getlist('amount[]')
@@ -269,7 +277,8 @@ def assign_fees():
                 semester=semester,
                 description=group_title,
                 amount=round(total, 2),
-                items=json.dumps(items)
+                items=json.dumps(items),
+                paystack_mode=paystack_mode
             )
 
             db.session.add(new_group)
@@ -323,6 +332,7 @@ def edit_fee_group(group_id):
             group.study_format = request.form.get('study_format') or 'Regular'
             group.semester = request.form.get('semester')
             group.description = request.form.get('group_title')
+            group.paystack_mode = request.form.get('paystack_mode', 'test').strip().lower()
 
             descriptions = request.form.getlist('description[]')
             amounts = request.form.getlist('amount[]')
@@ -900,7 +910,7 @@ def get_daily_revenue(days=30):
         end_date = end_dt.date()
         start_date = end_date - timedelta(days=days - 1)
 
-        # Use SQL date() function for SQLite compatibility, fallback to cast if available
+        # Use a database-compatible date expression for the report query.
         from sqlalchemy import func
 
         # Query sums grouped by date string (YYYY-MM-DD)

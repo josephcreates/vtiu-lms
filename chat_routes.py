@@ -1,12 +1,48 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required, current_user
 from flask_socketio import emit, join_room
 from utils.extensions import db, socketio
 from models import Conversation, ConversationParticipant, Message, MessageReaction, User, Admin, StudentProfile, TeacherProfile
 from datetime import datetime
 import json
+import threading
+import redis
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/chat')
+
+# ───────────────
+# Redis Chat Bridge
+# ───────────────
+def start_redis_listener(app):
+    with app.app_context():
+        redis_url = app.config.get('REDIS_URL')
+        if not redis_url:
+            return
+        
+        r = redis.from_url(redis_url)
+        pubsub = r.pubsub()
+        pubsub.subscribe('vtiu_chat_broadcast')
+        
+        print("Redis: Flask listening on vtiu_chat_broadcast")
+        for message in pubsub.listen():
+            if message['type'] == 'message':
+                try:
+                    data = json.loads(message['data'])
+                    # Broadcast to Web clients via SocketIO
+                    socketio.emit('new_message', {
+                        'conversation_id': 0, 
+                        'message': {
+                            'sender_name': data.get('sender_name', 'Mobile User'),
+                            'content': data.get('message'),
+                            'created_at': data.get('timestamp')
+                        }
+                    }, namespace='/')
+                except Exception as e:
+                    print(f"Redis Bridge Error: {e}")
+
+def init_chat_bridge(app):
+    thread = threading.Thread(target=start_redis_listener, args=(app,), daemon=True)
+    thread.start()
 
 # -------------------------
 # Helper functions
@@ -133,6 +169,9 @@ def require_group_admin(conv_id):
 # ───────────────
 online_users = set()
 sid_to_pub = {}
+sid_to_class_presence = {}
+class_presence_users = {}
+whiteboard_scenes = {}
 
 # ─────────────────────────
 # SocketIO events
@@ -155,11 +194,89 @@ def on_join(data):
 
     socketio.emit('presence_update', {'user_public_id': pub, 'status': 'online'})
 
+
+@socketio.on('class_presence_join')
+def on_class_presence_join(data):
+    """Track authenticated users currently inside a specific live class."""
+    conversation_id = (data or {}).get('conversation_id')
+    if not _can_access_class_board(conversation_id):
+        return
+
+    pub = getattr(current_user, 'public_id', None)
+    if not pub:
+        return
+
+    presence_room = f'class_presence_{conversation_id}'
+    join_room(presence_room)
+    sid = request.sid
+    sid_to_class_presence[sid] = (conversation_id, pub)
+    users = class_presence_users.setdefault(str(conversation_id), set())
+    users.add(pub)
+    socketio.emit(
+        'class_presence_count',
+        {'conversation_id': conversation_id, 'count': len(users)},
+        room=presence_room,
+    )
+
+
+def _can_access_class_board(conversation_id):
+    """Allow only participants in the class conversation to use its board."""
+    if not is_user_or_admin() or not conversation_id:
+        return False
+    return ConversationParticipant.query.filter_by(
+        conversation_id=conversation_id,
+        user_public_id=getattr(current_user, 'public_id', None),
+    ).first() is not None
+
+
+@socketio.on('whiteboard_join')
+def on_whiteboard_join(data):
+    conversation_id = (data or {}).get('conversation_id')
+    if not _can_access_class_board(conversation_id):
+        return
+    join_room(f'whiteboard_{conversation_id}')
+    emit('whiteboard_ready', {'conversation_id': conversation_id})
+    emit('whiteboard_update', {
+        'conversation_id': conversation_id,
+        'elements': whiteboard_scenes.get(conversation_id, []),
+    })
+
+
+@socketio.on('whiteboard_update')
+def on_whiteboard_update(data):
+    conversation_id = (data or {}).get('conversation_id')
+    if not _can_access_class_board(conversation_id):
+        return
+    elements = (data or {}).get('elements') or []
+    if not isinstance(elements, list) or len(elements) > 5000:
+        return
+    whiteboard_scenes[conversation_id] = elements
+    socketio.emit(
+        'whiteboard_update',
+        {'conversation_id': conversation_id, 'elements': elements},
+        room=f'whiteboard_{conversation_id}',
+        include_self=False,
+    )
+
 @socketio.on('disconnect')
 def on_disconnect():
     """Handle user disconnect."""
     sid = request.sid
     pub = sid_to_pub.pop(sid, None)
+    class_presence = sid_to_class_presence.pop(sid, None)
+
+    if class_presence:
+        conversation_id, class_pub = class_presence
+        users = class_presence_users.get(str(conversation_id), set())
+        users.discard(class_pub)
+        if users:
+            socketio.emit(
+                'class_presence_count',
+                {'conversation_id': conversation_id, 'count': len(users)},
+                room=f'class_presence_{conversation_id}',
+            )
+        else:
+            class_presence_users.pop(str(conversation_id), None)
 
     if not pub:
         pub = getattr(current_user, 'public_id', None)
@@ -209,9 +326,32 @@ def handle_message(data):
     db.session.commit()
 
     if conv:
+        # Broadcast to Web
         for part in conv.participants:
             room = f"user_{part.user_public_id}"
             socketio.emit('new_message', {"conversation_id": conv.id, "message": msg.to_dict()}, room=room)
+        
+        # Bridge to Mobile (Ktor)
+        try:
+            from flask import current_app
+            redis_url = current_app.config.get('REDIS_URL')
+            if redis_url:
+                r = redis.from_url(redis_url)
+                # Map receiverId correctly
+                receiver_id = "global"
+                meta = conv.get_meta() or {}
+                if meta.get("meeting_id"):
+                    receiver_id = f"meeting_{meta['meeting_id']}"
+                
+                r.publish('vtiu_chat_broadcast', json.dumps({
+                    'sender_id': sender_pub,
+                    'sender_name': current_user.username if hasattr(current_user, 'username') else 'User',
+                    'receiver_id': receiver_id,
+                    'message': message_text,
+                    'timestamp': datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                }))
+        except Exception as e:
+            print(f"Bridge publish error: {e}")
 
 # ─────────────────────────
 # Routes
