@@ -1,0 +1,273 @@
+{% extends "teacher/base_teacher.html" %}
+{% block title %}Assessment Results{% endblock %}
+
+{% block content %}
+<style>
+  .results-container { font-size: 0.9rem; }
+  .results-card {
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(200,200,200,0.3);
+    border-radius: 1rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    transition: 0.3s ease;
+  }
+  .results-card:hover { box-shadow: 0 6px 14px rgba(0,0,0,0.08); }
+  .table th, .table td { padding: 0.45rem 0.75rem !important; vertical-align: middle; }
+  .table thead { background: #0d6efd; color: white; font-size: 0.85rem; text-transform: uppercase; }
+  .nav-tabs .nav-link { font-size: 0.85rem; font-weight: 600; color: #555; border-radius: 0.5rem 0.5rem 0 0; }
+  .nav-tabs .nav-link.active { color: #0d6efd; background: #f8f9fa; border-bottom: 2px solid #0d6efd; }
+  .filter-bar input, .filter-bar select { font-size: 0.85rem; }
+  #resetFilters { font-size: 0.8rem; }
+</style>
+
+<div class="container-fluid py-1 results-container">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-semibold text-primary mb-0"><i class="fas fa-chart-line me-2"></i>Assessment Results</h5>
+    <div>
+      {% if semester_status and semester_status['is_locked'] %}
+        <span class="badge bg-warning text-dark">Submitted for vetting (Locked)</span>
+      {% else %}
+        <form method="post" action="{{ url_for('teacher.submit_for_vetting') }}" class="d-inline">
+          <!-- Hidden CSRF token -->
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="academic_year" value="{{ academic_year or '' }}">
+          <input type="hidden" name="semester" value="{{ semester or '' }}">
+          <button type="submit" class="btn btn-sm btn-primary" {% if not can_submit_vetting %}disabled{% endif %}>
+              <i class="fas fa-paper-plane me-1"></i> Submit for Vetting
+          </button>
+</form>
+
+      {% endif %}
+    </div>
+  </div>
+
+  {% if results|length == 0 %}
+    <div class="alert alert-secondary small py-2">No results available yet.</div>
+  {% else %}
+
+  <!-- Tabs: Quizzes / Assignments / Exams / Summary -->
+  <ul class="nav nav-tabs mb-3" id="typeTabs" role="tablist">
+    <li class="nav-item">
+      <button class="nav-link active" id="quiz-tab" data-bs-toggle="tab" data-bs-target="#quiz-pane" type="button" role="tab">
+        Quizzes
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="assignment-tab" data-bs-toggle="tab" data-bs-target="#assignment-pane" type="button" role="tab">
+        Assignments
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="exam-tab" data-bs-toggle="tab" data-bs-target="#exam-pane" type="button" role="tab">
+        Exams
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary-pane" type="button" role="tab">
+        📊 Summary
+      </button>
+    </li>
+  </ul>
+
+  <!-- Filters -->
+  <div class="row mb-3 g-2 filter-bar align-items-center">
+    <div class="col-md-4 col-12">
+      <input type="text" id="searchStudent" class="form-control form-control-sm" placeholder="Search student name...">
+    </div>
+    <div class="col-md-4 col-12">
+      <select id="filterCourse" class="form-select form-select-sm">
+        <option value="">All Courses</option>
+        {% for c in courses %}
+          <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4 col-12 text-md-end text-center">
+      <button class="btn btn-sm btn-outline-secondary" id="resetFilters"><i class="fas fa-undo me-1"></i>Reset</button>
+    </div>
+  </div>
+
+  <div class="tab-content" id="typeTabsContent">
+    <!-- Quizzes Tab -->
+    <div class="tab-pane fade show active" id="quiz-pane" role="tabpanel">
+      <div class="results-card p-2">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0" id="quizTable">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Student</th>
+                <th>Raw Score</th>
+                <th>Weight (%)</th>
+                <th>Weighted Score</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in results if r.type == 'Quiz' %}
+              <tr data-course="{{ r.course }}" data-student="{{ r.student|lower }}">
+                <td>{{ r.course }}</td>
+                <td>{{ r.student }}</td>
+                <td>{{ "%.2f"|format(r.raw_score or r.score or 0) }}</td>
+                <td>{{ r.weight_percent if r.weight_percent is not none else '-' }}</td>
+                <td class="fw-semibold text-success">
+                  {{ "%.2f"|format(r.weighted_score or 0) if r.weighted_score is not none else '-' }}
+                </td>
+                <td>{{ r.date or '' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Assignments Tab -->
+    <div class="tab-pane fade" id="assignment-pane" role="tabpanel">
+      <div class="results-card p-2">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0" id="assignmentTable">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Student</th>
+                <th>Raw Score</th>
+                <th>Weight (%)</th>
+                <th>Weighted Score</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in results if r.type == 'Assignment' %}
+              <tr data-course="{{ r.course }}" data-student="{{ r.student|lower }}">
+                <td>{{ r.course }}</td>
+                <td>{{ r.student }}</td>
+                <td>{{ "%.2f"|format(r.raw_score or r.score or 0) }}</td>
+                <td>{{ r.weight_percent if r.weight_percent is not none else '-' }}</td>
+                <td class="fw-semibold text-warning">
+                  {{ "%.2f"|format(r.weighted_score or 0) if r.weighted_score is not none else '-' }}
+                </td>
+                <td>{{ r.date or '' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Exams Tab -->
+    <div class="tab-pane fade" id="exam-pane" role="tabpanel">
+      <div class="results-card p-2">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0" id="examTable">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Student</th>
+                <th>Raw Score</th>
+                <th>Weight (%)</th>
+                <th>Weighted Score</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in results if r.type == 'Exam' %}
+              <tr data-course="{{ r.course }}" data-student="{{ r.student|lower }}">
+                <td>{{ r.course }}</td>
+                <td>{{ r.student }}</td>
+                <td>{{ "%.2f"|format(r.raw_score or r.score or 0) }}</td>
+                <td>{{ r.weight_percent if r.weight_percent is not none else '-' }}</td>
+                <td class="fw-semibold text-primary">
+                  {{ "%.2f"|format(r.weighted_score or 0) if r.weighted_score is not none else '-' }}
+                </td>
+                <td>{{ r.date or '' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Tab -->
+    <div class="tab-pane fade" id="summary-pane" role="tabpanel">
+      <div class="results-card p-2">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0" id="summaryTable">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Course</th>
+                <th>Quiz Weight</th>
+                <th>Exam Weight</th>
+                <th>Assignment Weight</th>
+                <th>Total Weighted Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set student_summaries = {} %}
+              {% for r in results %}
+                {% set key = (r.student, r.course) %}
+                {% if key not in student_summaries %}
+                  {% set _ = student_summaries.update({key: {'quiz': 0, 'exam': 0, 'assignment': 0}}) %}
+                {% endif %}
+                {% if r.type == 'Quiz' %}
+                  {% set _ = student_summaries[key].update({'quiz': r.weighted_score or 0}) %}
+                {% elif r.type == 'Exam' %}
+                  {% set _ = student_summaries[key].update({'exam': r.weighted_score or 0}) %}
+                {% elif r.type == 'Assignment' %}
+                  {% set _ = student_summaries[key].update({'assignment': r.weighted_score or 0}) %}
+                {% endif %}
+              {% endfor %}
+              
+              {% for (student, course), scores in student_summaries.items() %}
+              {% set total = scores.quiz + scores.exam + scores.assignment %}
+              <tr data-course="{{ course }}" data-student="{{ student|lower }}">
+                <td>{{ student }}</td>
+                <td>{{ course }}</td>
+                <td class="text-success">{{ "%.2f"|format(scores.quiz) if scores.quiz > 0 else '-' }}</td>
+                <td class="text-primary">{{ "%.2f"|format(scores.exam) if scores.exam > 0 else '-' }}</td>
+                <td class="text-warning">{{ "%.2f"|format(scores.assignment) if scores.assignment > 0 else '-' }}</td>
+                <td class="fw-semibold bg-light">{{ "%.2f"|format(total) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('searchStudent');
+  const courseFilter = document.getElementById('filterCourse');
+  const resetBtn = document.getElementById('resetFilters');
+
+  function applyFilters() {
+    const search = searchInput.value.toLowerCase();
+    const course = courseFilter.value;
+    document.querySelectorAll('table tbody tr').forEach(row => {
+      const student = row.dataset.student || '';
+      const rowCourse = row.dataset.course || '';
+      const visible =
+        (!search || student.includes(search)) &&
+        (!course || rowCourse === course);
+      row.style.display = visible ? '' : 'none';
+    });
+  }
+
+  searchInput.addEventListener('input', applyFilters);
+  courseFilter.addEventListener('change', applyFilters);
+  resetBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    courseFilter.value = '';
+    applyFilters();
+  });
+});
+</script>
+{% endblock %}

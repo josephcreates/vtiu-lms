@@ -1,0 +1,177 @@
+{% extends "teacher/base_teacher.html" %}
+{% block title %}Exam Timetable{% endblock %}
+
+{% block content %}
+<style>
+  .container { padding: 0.5rem; }
+  .card { margin-bottom: 1rem; }
+  .card-header { padding: 0.6rem 1rem; }
+  .card-header h3 { font-size: 1.1rem; margin-bottom: 0; }
+  .card-body { padding: 0.75rem; }
+  .form-label { font-size: 0.85rem; margin-bottom: 0.25rem; }
+  .form-control, .form-select { font-size: 0.85rem; padding: 0.35rem 0.6rem; height: 36px; }
+  .btn { font-size: 0.85rem; padding: 0.35rem 0.75rem; }
+  .btn-sm { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
+  .alert { padding: 0.6rem; font-size: 0.9rem; margin-bottom: 0.75rem; }
+  .table { font-size: 0.85rem; margin-bottom: 0; }
+  .table thead { font-size: 0.8rem; }
+  .table th, .table td { padding: 0.5rem; }
+  .badge { font-size: 0.75rem; padding: 0.35rem 0.6rem; }
+  #searchBox, #filterProgramme, #filterLevel, #filterSemester { font-size: 0.85rem; max-width: 130px; }
+</style>
+
+<div class="container mt-1">
+  <!-- Page Header -->
+  <div class="card shadow-lg border-0 mb-3">
+    <div class="card-header text-white" style="background: linear-gradient(90deg, #5b21b6, #0ea5e9);">
+      <h3 class="mb-0"><i class="fas fa-calendar-alt"></i> Exam Timetable</h3>
+    </div>
+    <div class="card-body">
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <p class="text-muted mb-0">
+        <i class="fas fa-info-circle"></i> View exam schedule created by administration. Filter by programme, level, or semester.
+      </p>
+    </div>
+  </div>
+
+  <!-- Exam Timetable Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-header text-white" style="background: linear-gradient(90deg, #1cc88a, #20c997);">
+      <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <h4 class="mb-0" style="font-size: 1rem;"><i class="fas fa-table"></i> Exam Timetable</h4>
+        <div class="d-flex gap-2 align-items-center" style="flex-wrap: wrap;">
+          <input type="text" id="searchBox" class="form-control form-control-sm" placeholder="🔍 Search..." style="font-size: 0.8rem; padding: 0.3rem 0.5rem;">
+          <select id="filterProgramme" class="form-select form-select-sm" style="font-size: 0.8rem; padding: 0.3rem 0.5rem;">
+            <option value="">All Programmes</option>
+            {% for p in programmes %}
+              <option value="{{ p }}">{{ p }}</option>
+            {% endfor %}
+          </select>
+          <select id="filterLevel" class="form-select form-select-sm" style="font-size: 0.8rem; padding: 0.3rem 0.5rem;">
+            <option value="">All Levels</option>
+            {% for lvl in levels %}
+              <option value="{{ lvl }}">{{ lvl }}</option>
+            {% endfor %}
+          </select>
+          <select id="filterSemester" class="form-select form-select-sm" style="font-size: 0.8rem; padding: 0.3rem 0.5rem;">
+            <option value="">All Semesters</option>
+            {% for s in semesters %}
+              <option value="{{ s }}">{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle mb-0" id="timetableTable">
+          <thead class="table-dark">
+            <tr>
+              <th style="font-size: 0.8rem;">Course</th>
+              <th style="font-size: 0.8rem;">Programme</th>
+              <th style="font-size: 0.8rem;">Level</th>
+              <th style="font-size: 0.8rem;">Semester</th>
+              <th style="font-size: 0.8rem;">Date</th>
+              <th style="font-size: 0.8rem;">Start</th>
+              <th style="font-size: 0.8rem;">End</th>
+              <th style="font-size: 0.8rem;">Room</th>
+              <th style="font-size: 0.8rem;">Building</th>
+              <th style="font-size: 0.8rem;">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in entries %}
+            <tr data-course="{{ entry.course }}" data-programme="{{ entry.programme_name }}" data-level="{{ entry.programme_level }}" data-semester="{{ (courses_map[entry.course]['semester'] if entry.course in courses_map else '') }}">
+              <td style="font-size: 0.85rem;"><strong>{{ entry.course }}</strong></td>
+              <td><span class="badge bg-primary" style="font-size: 0.7rem;">{{ entry.programme_name }}</span></td>
+              <td><span class="badge bg-info" style="font-size: 0.7rem;">{{ entry.programme_level }}</span></td>
+              <td><span class="badge bg-secondary" style="font-size: 0.7rem;">{{ (courses_map[entry.course]['semester'] if entry.course in courses_map else 'N/A') }}</span></td>
+              <td style="font-size: 0.85rem;"><i class="fas fa-calendar"></i> {{ entry.date.strftime('%d %b %Y') }}</td>
+              <td style="font-size: 0.85rem;"><i class="fas fa-clock text-success"></i> {{ entry.start_time.strftime('%H:%M') }}</td>
+              <td style="font-size: 0.85rem;"><i class="fas fa-clock text-danger"></i> {{ entry.end_time.strftime('%H:%M') }}</td>
+              <td style="font-size: 0.85rem;">{{ entry.room or '—' }}</td>
+              <td style="font-size: 0.85rem;">{{ entry.building or '—' }}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="popover" 
+                        data-bs-content="Floor: {{ entry.floor or 'N/A' }}<br/>Notes: {{ entry.notes or 'None' }}"
+                        title="Details" style="font-size: 0.7rem; padding: 0.25rem 0.4rem;">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="10" class="text-center text-muted p-3" style="font-size: 0.9rem;">
+                <i class="fas fa-info-circle"></i> No exam timetable entries available.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filtering Script -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const searchBox = document.getElementById("searchBox");
+  const filterProgramme = document.getElementById("filterProgramme");
+  const filterLevel = document.getElementById("filterLevel");
+  const filterSemester = document.getElementById("filterSemester");
+  const rows = document.querySelectorAll("#timetableTable tbody tr");
+
+  function filterTable() {
+    const search = searchBox.value.toLowerCase();
+    const programme = filterProgramme.value;
+    const level = filterLevel.value;
+    const semester = filterSemester ? filterSemester.value : '';
+
+    rows.forEach(row => {
+      if (row.cells.length < 10) return; // Skip empty rows
+      
+      const programmeText = row.getAttribute('data-programme') || '';
+      const levelText = row.getAttribute('data-level') || '';
+      const courseText = row.getAttribute('data-course') || '';
+      const semesterText = row.getAttribute('data-semester') || '';
+
+      let match = true;
+      
+      if (search && !courseText.toLowerCase().includes(search)) {
+        match = false;
+      }
+      if (programme && programmeText !== programme) match = false;
+      if (level && levelText !== level) match = false;
+      if (semester && semesterText !== semester) match = false;
+
+      row.style.display = match ? "" : "none";
+    });
+  }
+
+  searchBox.addEventListener("keyup", filterTable);
+  filterProgramme.addEventListener("change", filterTable);
+  filterLevel.addEventListener("change", filterTable);
+  if (filterSemester) filterSemester.addEventListener("change", filterTable);
+
+  // Initialize Bootstrap popovers
+  const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+  popoverTriggerList.map(function (popoverTriggerEl) {
+    return new bootstrap.Popover(popoverTriggerEl, {
+      html: true
+    });
+  });
+});
+</script>
+{% endblock %}
