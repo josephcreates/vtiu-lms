@@ -1,0 +1,247 @@
+{% extends 'admin/layout.html' %}
+{% block title %}Edit Fee Group{% endblock %}
+
+{% block head_extra %}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-3 compact-fees" style="max-width:1100px; font-size:0.9rem;">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h4 class="mb-0 fw-bold">✏️ Edit Fee Group</h4>
+      <div class="small text-muted">Update fees for this class and semester.</div>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <a href="{{ url_for('admin.assign_fees') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back
+      </a>
+    </div>
+  </div>
+
+  <!-- Form Card -->
+  <div class="card mb-4 shadow-sm border-0">
+    <div class="card-header py-2" style="background:linear-gradient(90deg,#ff7e5f,#feb47b);">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="text-white small fw-semibold"><i class="fas fa-money-bill-wave me-2"></i>Edit Fee Group</div>
+        <div class="text-white small">Fields marked <span class="text-warning">*</span> are required</div>
+      </div>
+    </div>
+
+    <div class="card-body py-3">
+      <form id="feeForm" method="POST" class="row gy-2 gx-2 align-items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Programme -->
+        <div class="col-md-3 col-6">
+          <label class="form-label small fw-semibold">Programme <span class="text-warning">*</span></label>
+          <select name="programme_name" class="form-select form-select-sm" required>
+            {% for p in CERTIFICATE_PROGRAMMES + DIPLOMA_PROGRAMMES %}
+              <option value="{{ p[0] }}" {% if group.programme_name == p[0] %}selected{% endif %}>{{ p[1] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Study Format -->
+        <div class="col-md-3 col-6">
+          <label class="form-label small fw-semibold">Study Format <span class="text-warning">*</span></label>
+          <select name="study_format" class="form-select form-select-sm" required>
+            {% for f in STUDY_FORMATS %}
+              <option value="{{ f[0] }}" {% if group.study_format == f[0] %}selected{% endif %}>{{ f[1] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Semester -->
+        <div class="col-md-3 col-6">
+          <label class="form-label small fw-semibold">Semester <span class="text-warning">*</span></label>
+          <select name="semester" class="form-select form-select-sm" required>
+            <option value="First" {% if group.semester=='First' %}selected{% endif %}>First</option>
+            <option value="Second" {% if group.semester=='Second' %}selected{% endif %}>Second</option>
+          </select>
+        </div>
+
+        <div class="col-md-3 col-6">
+          <label class="form-label small fw-semibold">Paystack Mode</label>
+          <select name="paystack_mode" class="form-select form-select-sm">
+            <option value="test" {% if group.paystack_mode != 'live' %}selected{% endif %}>Test</option>
+            <option value="live" {% if group.paystack_mode == 'live' %}selected{% endif %}>Live</option>
+          </select>
+        </div>
+
+        <!-- Academic Year -->
+        <div class="col-md-3 col-6">
+          <label class="form-label small fw-semibold">Academic Year <span class="text-warning">*</span></label>
+          <input type="text" class="form-control form-select-sm" value="{{ current_academic_year or 'Not configured' }}" readonly>
+          <input type="hidden" name="academic_year" value="{{ current_academic_year or '' }}">
+        </div>
+
+        <!-- Class Level -->
+        <div class="col-md-3 col-6">
+          <label class="form-label small fw-semibold">Class Level <span class="text-warning">*</span></label>
+          <select name="programme_level" class="form-select form-select-sm" required>
+            <option value="">-- Select --</option>
+            <option value="100" {% if group.programme_level|string == "100" %}selected{% endif %}>100 Level</option>
+            <option value="200" {% if group.programme_level|string == "200" %}selected{% endif %}>200 Level</option>
+            <option value="300" {% if group.programme_level|string == "300" %}selected{% endif %}>300 Level</option>
+            <option value="400" {% if group.programme_level|string == "400" %}selected{% endif %}>400 Level</option>
+          </select>
+        </div>
+
+        <hr class="my-2">
+
+        <!-- Fee Percentage Settings - Separate Form -->
+        <div class="col-12">
+          <h6 class="small text-secondary mb-2">📊 Fee Percentage Settings</h6>
+          <form method="POST" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-md-3 col-6">
+              <label class="form-label small fw-semibold">Academic Year <span class="text-warning">*</span></label>
+              <input type="text" class="form-control form-select-sm" value="{{ current_academic_year or 'Not configured' }}" readonly>
+              <input type="hidden" name="academic_year" value="{{ current_academic_year or '' }}">
+            </div>
+
+            <div class="col-md-3 col-6">
+              <label class="form-label small fw-semibold">Base Payment % <span class="text-warning">*</span></label>
+              <div class="input-group input-group-sm">
+                <input type="number" name="base_payment_percentage" class="form-control form-control-sm" 
+                       value="{{ current_settings.base_payment_percentage if current_settings else 50.0 }}" 
+                       min="0" max="100" step="0.1" required>
+                <span class="input-group-text">%</span>
+              </div>
+              <small class="form-text text-muted">Percentage of total fees required as base payment</small>
+            </div>
+
+            <div class="col-md-3 col-6">
+              <label class="form-label small fw-semibold">Base Payment Deadline <span class="text-warning">*</span></label>
+              <input type="date" name="base_payment_deadline" class="form-control form-control-sm" 
+                     value="{{ current_settings.base_payment_deadline.strftime('%Y-%m-%d') if current_settings else '' }}" 
+                     required>
+              <small class="form-text text-muted">Deadline for base payment</small>
+            </div>
+
+            <div class="col-md-3 col-6">
+              <label class="form-label small fw-semibold">Allow Installments</label>
+              <div class="form-check form-switch mt-2">
+                <input class="form-check-input" type="checkbox" name="allow_installments_after_base" 
+                       {% if current_settings and current_settings.allow_installments_after_base %}checked{% endif %}>
+                <label class="form-check-label small">Enable installments after base payment</label>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Policy Description</label>
+              <textarea name="description" class="form-control form-control-sm" rows="2">{{ current_settings.description if current_settings else '' }}</textarea>
+              <small class="form-text text-muted">Description of fee policy for students</small>
+            </div>
+
+            <div class="col-12">
+              <button type="submit" name="save_percentage_settings" value="1" class="btn btn-sm btn-info">
+                <i class="fas fa-save me-1"></i> Save Percentage Settings
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <hr class="my-2">
+
+        <!-- Fee Items -->
+        <div class="col-12">
+          <h6 class="small text-secondary mb-2">📌 Fee items</h6>
+          <div id="feeItemsContainer" class="d-grid gap-2">
+            {% for item in group_items %}
+              <div class="row g-2 fee-item align-items-center">
+                <div class="col-md-6 col-7">
+                  <input type="text" name="description[]" class="form-control form-control-sm" placeholder="Fee description" value="{{ item.description }}" required>
+                </div>
+                <div class="col-md-3 col-3">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text">GHS</span>
+                    <input type="number" name="amount[]" class="form-control form-control-sm amount-input" step="0.01" min="0" value="{{ item.amount }}" required>
+                  </div>
+                </div>
+                <div class="col-md-3 col-2 d-flex gap-1 justify-content-end">
+                  <button type="button" class="btn btn-sm btn-success add-item"><i class="fas fa-plus"></i></button>
+                  <button type="button" class="btn btn-sm btn-danger remove-item"><i class="fas fa-trash"></i></button>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-2">
+            <div class="small text-muted">Tip: Use the + to add more fee rows.</div>
+            <div class="small">
+              <strong>Total:</strong> GHS <span id="feesTotal">0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 mt-3 d-grid">
+          <button type="submit" class="btn btn-sm btn-success fw-semibold" style="background:linear-gradient(90deg,#11998e,#38ef7d); color:#fff;">
+            <i class="fas fa-paper-plane me-1"></i> Update Fees
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- JS: reuse the same JS as assign_fees.html -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const feeItemsContainer = document.getElementById('feeItemsContainer');
+  const totalEl = document.getElementById('feesTotal');
+
+  const addSelector = '.add-item';
+  const removeSelector = '.remove-item';
+
+  function currency(v){ return Number(v||0); }
+  function format(n){ return Number(n).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+  function updateRemoveButtons() {
+    const removeBtns = feeItemsContainer.querySelectorAll(removeSelector);
+    if(removeBtns.length===1) removeBtns[0].disabled=true;
+    else removeBtns.forEach(b=>b.disabled=false);
+  }
+
+  function recalcTotal(){
+    const amounts = feeItemsContainer.querySelectorAll('.amount-input');
+    let sum = Array.from(amounts).reduce((s,el)=>s+currency(el.value),0);
+    totalEl.innerText = format(sum);
+  }
+
+  feeItemsContainer.addEventListener('click',(e)=>{
+    const addBtn = e.target.closest(addSelector);
+    const removeBtn = e.target.closest(removeSelector);
+
+    if(addBtn){
+      const row = addBtn.closest('.fee-item');
+      const clone = row.cloneNode(true);
+      clone.querySelectorAll('input').forEach(i=>i.value='');
+      feeItemsContainer.appendChild(clone);
+      updateRemoveButtons();
+      recalcTotal();
+      return;
+    }
+
+    if(removeBtn){
+      const rows = feeItemsContainer.querySelectorAll('.fee-item');
+      if(rows.length<=1) return;
+      removeBtn.closest('.fee-item').remove();
+      updateRemoveButtons();
+      recalcTotal();
+      return;
+    }
+  });
+
+  feeItemsContainer.addEventListener('input',(e)=>{
+    if(e.target.classList.contains('amount-input')) recalcTotal();
+  });
+
+  updateRemoveButtons();
+  recalcTotal();
+});
+</script>
+
+{% endblock %}

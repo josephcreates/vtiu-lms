@@ -1,0 +1,392 @@
+{% extends "admin/layout.html" %}
+{% block title %}Create Admin Account{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h2 class="mb-0">
+        <i class="fas fa-user-tie me-2 text-primary"></i> Create Admin Account
+      </h2>
+      <small class="text-muted">Create Finance Admin, Admissions Admin, or Academic Admin accounts</small>
+    </div>
+    <div class="text-end">
+      <span class="badge bg-warning text-dark">⭐ Superadmin Only</span>
+      <div class="small mt-2">
+        <a href="{{ url_for('admin.list_admins') }}" class="btn btn-sm btn-outline-secondary">
+          <i class="fas fa-list me-1"></i> View All Admins
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Form -->
+  <form method="POST" action="{{ url_for('admin.create_admin') }}" enctype="multipart/form-data" novalidate>
+    {{ form.hidden_tag() }}
+
+    <!-- ====== BASIC INFORMATION ====== -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">
+          <i class="fas fa-user me-2"></i> Basic Information
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <!-- Profile Picture -->
+          <div class="col-md-3 d-flex flex-column align-items-center">
+            <label for="profile_picture" class="form-label w-100">Profile Picture</label>
+            <div id="profileDropZone" class="w-100 text-center border-2 border-dashed rounded p-3" style="cursor: pointer; transition: all 0.3s;">
+              <input type="file" name="profile_picture" id="profile_picture" class="form-control visually-hidden" accept="image/*">
+              <img id="profilePreview" src="{{ url_for('static', filename='uploads/profile_pictures/default_avatar.png') }}" alt="Profile" class="img-thumbnail" style="max-width: 120px; max-height: 120px;">
+              <div class="mt-2">
+                <button type="button" id="uploadBtn" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-upload me-1"></i> Choose Photo
+                </button>
+              </div>
+              <small class="text-muted d-block mt-2">JPG, PNG, or GIF (max 2MB)</small>
+            </div>
+          </div>
+
+          <!-- Names -->
+          <div class="col-md-9">
+            <div class="row g-3">
+              <div class="col-md-4">
+                {{ form.first_name.label(class="form-label") }}
+                {{ form.first_name(class="form-control" + (" is-invalid" if form.first_name.errors else "")) }}
+                {% if form.first_name.errors %}
+                  <div class="invalid-feedback d-block">{{ form.first_name.errors[0] }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-4">
+                {{ form.middle_name.label(class="form-label") }}
+                {{ form.middle_name(class="form-control") }}
+              </div>
+              <div class="col-md-4">
+                {{ form.last_name.label(class="form-label") }}
+                {{ form.last_name(class="form-control" + (" is-invalid" if form.last_name.errors else "")) }}
+                {% if form.last_name.errors %}
+                  <div class="invalid-feedback d-block">{{ form.last_name.errors[0] }}</div>
+                {% endif %}
+              </div>
+
+              <!-- Email -->
+              <div class="col-12">
+                {{ form.email.label(class="form-label") }}
+                {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), autocomplete="email") }}
+                {% if form.email.errors %}
+                  <div class="invalid-feedback d-block">{{ form.email.errors[0] }}</div>
+                {% endif %}
+                <small class="text-muted">Must be unique. Used for login.</small>
+              </div>
+
+              <!-- Password -->
+              <div class="col-12">
+                <label class="form-label">Temporary Password <span class="text-danger">*</span></label>
+                
+                <div class="mb-2">
+                  <button type="button" class="btn btn-sm btn-outline-success" id="generatePwBtn">
+                    <i class="fas fa-magic me-1"></i> Generate Password
+                  </button>
+                </div>
+
+                <div class="input-group">
+                  {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), id="password_field", autocomplete="new-password") }}
+                  <button type="button" class="btn btn-outline-secondary" id="copyPwBtn" title="Copy to clipboard">
+                    <i class="fas fa-copy"></i>
+                  </button>
+                </div>
+                
+                {% if form.password.errors %}
+                  <div class="invalid-feedback d-block">{{ form.password.errors[0] }}</div>
+                {% endif %}
+                
+                <div class="progress mt-2" style="height: 6px;">
+                  <div id="pwStrengthBar" class="progress-bar" style="width: 0%"></div>
+                </div>
+                <small id="pwStrengthText" class="text-muted">Strength: —</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== ADMIN DETAILS ====== -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">
+          <i class="fas fa-briefcase me-2"></i> Admin Details
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <!-- Role Selection -->
+          <div class="col-md-6">
+            {{ form.role.label(class="form-label") }}
+            {{ form.role(class="form-select" + (" is-invalid" if form.role.errors else ""), onchange="updateRoleDisplay()") }}
+            {% if form.role.errors %}
+              <div class="invalid-feedback d-block">{{ form.role.errors[0] }}</div>
+            {% endif %}
+            
+            <div id="roleInfo" class="alert alert-info mt-2 small d-none"></div>
+          </div>
+
+          <!-- Job Title -->
+          <div class="col-md-6">
+            {{ form.job_title.label(class="form-label") }}
+            {{ form.job_title(class="form-control" + (" is-invalid" if form.job_title.errors else "")) }}
+            {% if form.job_title.errors %}
+              <div class="invalid-feedback d-block">{{ form.job_title.errors[0] }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Department -->
+          <div class="col-md-6">
+            {{ form.department.label(class="form-label") }}
+            {{ form.department(class="form-select" + (" is-invalid" if form.department.errors else "")) }}
+            {% if form.department.errors %}
+              <div class="invalid-feedback d-block">{{ form.department.errors[0] }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Office Location -->
+          <div class="col-md-6">
+            {{ form.office_location.label(class="form-label") }}
+            {{ form.office_location(class="form-control") }}
+          </div>
+
+          <!-- Date of Appointment -->
+          <div class="col-md-6">
+            {{ form.date_of_appointment.label(class="form-label") }}
+            {{ form.date_of_appointment(class="form-control", type="date") }}
+          </div>
+
+          <!-- Phone -->
+          <div class="col-md-6">
+            {{ form.phone.label(class="form-label") }}
+            {{ form.phone(class="form-control") }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== PERMISSIONS ====== -->
+    <div id="permissionsCard" class="card shadow-sm mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">
+          <i class="fas fa-lock me-2"></i> Permissions
+        </h5>
+      </div>
+      <div class="card-body">
+        <div id="finance-permissions" class="permissions-section d-none">
+          <h6 class="mb-3">💰 Finance Admin Permissions</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="form-check">
+                {{ form.can_approve_payments(class="form-check-input") }}
+                {{ form.can_approve_payments.label(class="form-check-label") }}
+              </div>
+              <small class="text-muted">Can approve/reject student payments</small>
+            </div>
+            <div class="col-md-6">
+              <div class="form-check">
+                {{ form.can_manage_fees(class="form-check-input") }}
+                {{ form.can_manage_fees.label(class="form-check-label") }}
+              </div>
+              <small class="text-muted">Can create and manage fee structures</small>
+            </div>
+            <div class="col-md-6">
+              <div class="form-check">
+                {{ form.can_view_reports(class="form-check-input") }}
+                {{ form.can_view_reports.label(class="form-check-label") }}
+              </div>
+              <small class="text-muted">Can view financial reports and analytics</small>
+            </div>
+          </div>
+        </div>
+
+        <div id="admissions-permissions" class="permissions-section d-none">
+          <h6 class="mb-3">👥 Admissions Admin Permissions</h6>
+          <p class="text-muted">Admissions Admins can:</p>
+          <ul class="small text-muted">
+            <li>Review student applications</li>
+            <li>Approve or reject applicants</li>
+            <li>Generate admission letters</li>
+            <li>Manage admission vouchers</li>
+          </ul>
+        </div>
+
+        <div id="academic-permissions" class="permissions-section d-none">
+          <h6 class="mb-3">📚 Academic Admin Permissions</h6>
+          <p class="text-muted">Academic Admins can:</p>
+          <ul class="small text-muted">
+            <li>View student academic records</li>
+            <li>Manage grades and results</li>
+            <li>Approve vetting of student results</li>
+            <li>Generate academic reports</li>
+          </ul>
+        </div>
+
+        <div id="no-permissions" class="alert alert-info small">
+          <i class="fas fa-info-circle me-2"></i>
+          Permissions are set based on the selected role. You can customize specific permissions after creation if needed.
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== PERSONAL INFORMATION ====== -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">
+          <i class="fas fa-id-card me-2"></i> Personal Information (Optional)
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            {{ form.dob.label(class="form-label") }}
+            {{ form.dob(class="form-control", type="date") }}
+          </div>
+          <div class="col-md-4">
+            {{ form.gender.label(class="form-label") }}
+            {{ form.gender(class="form-select") }}
+          </div>
+          <div class="col-md-4">
+            {{ form.nationality.label(class="form-label") }}
+            {{ form.nationality(class="form-control") }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== ACTIONS ====== -->
+    <div class="d-flex gap-2 mb-4">
+      {{ form.submit(class="btn btn-success btn-lg") }}
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary btn-lg">Cancel</a>
+      <button type="reset" class="btn btn-outline-secondary btn-lg">Reset</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  // Role info messages
+  const roleInfoMap = {
+    'finance_admin': '💰 Manages all financial operations including payments, fees, and financial reports.',
+    'admissions_admin': '👥 Handles student admissions, reviews applications, and approves/rejects admissions.',
+    'academic_admin': '📚 Manages academic records, grades, results vetting, and academic reports.'
+  };
+
+  function updateRoleDisplay() {
+    const role = document.getElementById('role').value;
+    
+    // Hide all sections
+    document.querySelectorAll('.permissions-section').forEach(el => el.classList.add('d-none'));
+    document.getElementById('no-permissions').classList.add('d-none');
+    
+    // Show relevant section
+    if (role === 'finance_admin') {
+      document.getElementById('finance-permissions').classList.remove('d-none');
+    } else if (role === 'admissions_admin') {
+      document.getElementById('admissions-permissions').classList.remove('d-none');
+    } else if (role === 'academic_admin') {
+      document.getElementById('academic-permissions').classList.remove('d-none');
+    } else {
+      document.getElementById('no-permissions').classList.remove('d-none');
+    }
+    
+    // Show role info
+    const info = document.getElementById('roleInfo');
+    if (roleInfoMap[role]) {
+      info.textContent = roleInfoMap[role];
+      info.classList.remove('d-none');
+    } else {
+      info.classList.add('d-none');
+    }
+  }
+
+  // Password strength checker
+  function checkPasswordStrength(pw) {
+    let score = 0;
+    if (pw.length >= 8) score++;
+    if (pw.length >= 12) score++;
+    if (/[a-z]/.test(pw)) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^a-zA-Z0-9]/.test(pw)) score++;
+    
+    const pct = (score / 6) * 100;
+    const bar = document.getElementById('pwStrengthBar');
+    const text = document.getElementById('pwStrengthText');
+    
+    bar.style.width = pct + '%';
+    bar.className = 'progress-bar';
+    
+    if (pct < 40) {
+      bar.classList.add('bg-danger');
+      text.textContent = 'Strength: Weak';
+    } else if (pct < 70) {
+      bar.classList.add('bg-warning');
+      text.textContent = 'Strength: Medium';
+    } else {
+      bar.classList.add('bg-success');
+      text.textContent = 'Strength: Strong';
+    }
+  }
+
+  // Generate random password
+  function generatePassword(length = 12) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let pw = '';
+    for (let i = 0; i < length; i++) {
+      pw += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pw;
+  }
+
+  // Event listeners
+  document.getElementById('generatePwBtn').addEventListener('click', () => {
+    const pw = generatePassword();
+    const field = document.getElementById('password_field');
+    field.value = pw;
+    checkPasswordStrength(pw);
+  });
+
+  document.getElementById('copyPwBtn').addEventListener('click', () => {
+    const field = document.getElementById('password_field');
+    if (field.value) {
+      navigator.clipboard.writeText(field.value).then(() => {
+        const btn = document.getElementById('copyPwBtn');
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i>', 1500);
+      });
+    }
+  });
+
+  document.getElementById('password_field').addEventListener('input', (e) => {
+    checkPasswordStrength(e.target.value);
+  });
+
+  // Profile picture handling
+  document.getElementById('uploadBtn').addEventListener('click', () => {
+    document.getElementById('profile_picture').click();
+  });
+
+  document.getElementById('profile_picture').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        document.getElementById('profilePreview').src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Init on load
+  document.addEventListener('DOMContentLoaded', () => {
+    updateRoleDisplay();
+  });
+</script>
+{% endblock %}

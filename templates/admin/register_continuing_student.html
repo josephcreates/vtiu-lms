@@ -1,0 +1,850 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Register Continuing Student{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- CSRF Token (for meta tag) -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-user-plus"></i> Register Continuing Student
+                </h1>
+                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+            <p class="text-muted small mt-2">
+                Register students who are continuing to higher levels (200, 300, or 400)
+            </p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- CRITICAL: Show this alert if no credentials generated yet -->
+            <div class="alert alert-danger mb-4" id="noCredentialsAlert" role="alert">
+                <i class="fas fa-circle-notch fa-spin"></i>
+                <strong>⏳ Waiting for credentials...</strong> Enter First Name and Last Name to generate username and password automatically
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="continuingStudentForm">
+                        <!-- CSRF Token (Hidden) -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <!-- Personal Information Section -->
+                        <div class="form-section mb-4">
+                            <h5 class="card-title border-bottom pb-3 mb-3">
+                                <i class="fas fa-user text-primary"></i> Personal Information
+                            </h5>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="first_name" name="first_name" required placeholder="e.g., Joseph">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="last_name" name="last_name" required placeholder="e.g., Lamptey">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="middle_name" class="form-label">Middle Name</label>
+                                    <input type="text" class="form-control" id="middle_name" name="middle_name" placeholder="e.g., Odartei">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="dob" class="form-label">Date of Birth</label>
+                                    <input type="date" class="form-control" id="dob" name="dob">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="gender" class="form-label">Gender</label>
+                                    <select class="form-select" id="gender" name="gender">
+                                        <option value="">Select Gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="nationality" class="form-label">Nationality</label>
+                                    <input type="text" class="form-control" id="nationality" name="nationality">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="religion" class="form-label">Religion</label>
+                                    <input type="text" class="form-control" id="religion" name="religion">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="phone" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="phone" name="phone">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contact Information Section -->
+                        <div class="form-section mb-4">
+                            <h5 class="card-title border-bottom pb-3 mb-3">
+                                <i class="fas fa-map-marker-alt text-primary"></i> Contact Information
+                            </h5>
+
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email Address</label>
+                                <input type="email" class="form-control" id="email" name="email">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="address" class="form-label">Address</label>
+                                <textarea class="form-control" id="address" name="address" rows="2"></textarea>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="city" class="form-label">City</label>
+                                    <input type="text" class="form-control" id="city" name="city">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="state" class="form-label">State/Region</label>
+                                    <input type="text" class="form-control" id="state" name="state">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="postal_code" class="form-label">Postal Code</label>
+                                    <input type="text" class="form-control" id="postal_code" name="postal_code">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Academic Information Section -->
+                        <div class="form-section mb-4">
+                            <h5 class="card-title border-bottom pb-3 mb-3">
+                                <i class="fas fa-graduation-cap text-primary"></i> Academic Information
+                            </h5>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="current_programme" class="form-label">Programme <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="current_programme" name="current_programme" required>
+                                        <option value="">Select Programme</option>
+                                        {% for programme in programmes %}
+                                        <option value="{{ programme[0] }}">{{ programme[1] }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="programme_level" class="form-label">Level <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="programme_level" name="programme_level" required>
+                                        <option value="">Select Level</option>
+                                        <option value="200">Level 200 (Year 2)</option>
+                                        <option value="300">Level 300 (Year 3)</option>
+                                        <option value="400">Level 400 (Year 4)</option>
+                                    </select>
+                                    <small class="form-text text-muted">Only levels 200-400 for continuing students</small>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="academic_year" class="form-label">Academic Year</label>
+                                     <input type="text" class="form-control" id="academic_year_display"
+                                         value="{{ current_academic_year or 'Not configured' }}" readonly>
+                                     <input type="hidden" id="academic_year" name="academic_year" value="{{ current_academic_year or '' }}">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="semester" class="form-label">Semester</label>
+                                    <select class="form-select" id="semester" name="semester">
+                                        <option value="">Select Semester</option>
+                                        <option value="1">Semester 1</option>
+                                        <option value="2">Semester 2</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="student_type" class="form-label">Student Type <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="student_type" name="student_type" required>
+                                        <option value="online">Online Student (Full LMS Access)</option>
+                                        <option value="regular">Regular Student (Admissions Only)</option>
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        <strong>Online:</strong> Access to quizzes, assignments, exams, materials, chat
+                                        <br><strong>Regular:</strong> Admissions process only, no LMS features
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Guardian Information Section -->
+                        <div class="form-section mb-4">
+                            <h5 class="card-title border-bottom pb-3 mb-3">
+                                <i class="fas fa-heart text-primary"></i> Guardian Information
+                            </h5>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="guardian_name" class="form-label">Guardian Name</label>
+                                    <input type="text" class="form-control" id="guardian_name" name="guardian_name">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="guardian_relation" class="form-label">Relation to Student</label>
+                                    <input type="text" class="form-control" id="guardian_relation" name="guardian_relation" placeholder="e.g., Parent, Uncle, Aunt">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="guardian_phone" class="form-label">Guardian Phone</label>
+                                    <input type="tel" class="form-control" id="guardian_phone" name="guardian_phone">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="guardian_email" class="form-label">Guardian Email</label>
+                                    <input type="email" class="form-control" id="guardian_email" name="guardian_email">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="guardian_address" class="form-label">Guardian Address</label>
+                                <textarea class="form-control" id="guardian_address" name="guardian_address" rows="2"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- HIDDEN INPUTS FOR CREDENTIALS -->
+                        <input type="hidden" id="username" name="username">
+                        <input type="hidden" id="password" name="password">
+                        <input type="hidden" id="index_number" name="index_number">
+
+                        <!-- ========================================================================================================= -->
+                        <!-- CREDENTIALS SECTION - MOST PROMINENT PART OF FORM -->
+                        <!-- ========================================================================================================= -->
+                        <div class="mb-4" style="border: 4px solid #28a745; border-radius: 12px; background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%); padding: 28px; box-shadow: 0 4px 20px rgba(40, 167, 69, 0.2);">
+                            
+                            <h3 class="mb-4" style="color: #28a745; text-align: center; font-weight: 900;">
+                                <i class="fas fa-check-circle fa-xl"></i> 
+                                AUTO-GENERATED CREDENTIALS
+                            </h3>
+
+                            <div class="alert alert-info mb-4" role="alert" style="border-width: 2px;">
+                                <i class="fas fa-info-circle fa-lg"></i> 
+                                <strong>✔️ CHECK THESE CREDENTIALS BEFORE SUBMITTING!</strong> 
+                                <br>Enter First and Last name above to generate them automatically
+                            </div>
+
+                            <!-- USERNAME CARD -->
+                            <div class="card mb-4 shadow" style="border: 3px solid #0d6efd; background: #f8f9ff;">
+                                <div class="card-body p-4">
+                                    <div class="d-flex justify-content-between align-items-start gap-3">
+                                        <div style="flex-grow: 1;">
+                                            <label class="form-label fw-bold mb-3" style="color: #0d6efd; font-size: 18px;">
+                                                <i class="fas fa-user-circle fa-lg"></i> LOGIN USERNAME
+                                            </label>
+                                            <div style="background: white; padding: 20px; border-radius: 8px; border: 3px solid #0d6efd; min-height: 70px; display: flex; align-items: center; justify-content: center;">
+                                                <code id="previewUsername" style="font-size: 26px; color: #0d6efd; font-weight: 900; word-break: break-all; letter-spacing: 1px; text-align: center;">
+                                                    ⏳ Enter first & last name above...
+                                                </code>
+                                            </div>
+                                            <small class="text-muted d-block mt-3" style="font-size: 14px;">
+                                                <strong>📋 Format:</strong> [FirstInitial][LastInitial][LastName]@st.vtiu.edu.gh
+                                                <br><em>Example: jolamptey@st.vtiu.edu.gh</em>
+                                            </small>
+                                        </div>
+                                        <button type="button" class="btn btn-primary btn-lg ms-3" style="margin-top: 35px; white-space: nowrap;" title="Copy username to clipboard" onclick="copyToClipboard('previewUsername')">
+                                            <i class="fas fa-copy fa-lg"></i> Copy
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PASSWORD CARD -->
+                            <div class="card mb-4 shadow" style="border: 3px solid #dc3545; background: #fff8f9;">
+                                <div class="card-body p-4">
+                                    <div class="d-flex justify-content-between align-items-start gap-3">
+                                        <div style="flex-grow: 1;">
+                                            <label class="form-label fw-bold mb-3" style="color: #dc3545; font-size: 18px;">
+                                                <i class="fas fa-lock fa-lg"></i> TEMPORARY PASSWORD
+                                            </label>
+                                            <div style="background: white; padding: 20px; border-radius: 8px; border: 3px solid #dc3545; min-height: 70px; display: flex; align-items: center; justify-content: center;">
+                                                <code id="previewPassword" style="font-size: 26px; color: #dc3545; font-weight: 900; letter-spacing: 4px; text-align: center;">
+                                                    ⏳ Enter first & last name above...
+                                                </code>
+                                            </div>
+                                            <small class="text-muted d-block mt-3" style="font-size: 14px;">
+                                                <strong>🔐 Auto-generated secure password</strong> 
+                                                <br><em>Student MUST change on first login</em>
+                                            </small>
+                                        </div>
+                                        <div class="d-flex flex-column gap-2 ms-3" style="margin-top: 35px;">
+                                            <button type="button" class="btn btn-danger btn-lg" style="white-space: nowrap;" title="Show/hide password" onclick="togglePasswordPreview()">
+                                                <i class="fas fa-eye fa-lg" id="toggleIcon"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-danger btn-lg" style="white-space: nowrap;" title="Copy password to clipboard" onclick="copyToClipboard('previewPassword')">
+                                                <i class="fas fa-copy fa-lg"></i> Copy
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger btn-lg" id="regenerateBtn" style="white-space: nowrap;" title="Generate new password">
+                                                <i class="fas fa-sync-alt fa-lg"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- INDEX NUMBER CARD -->
+                            <div class="card mb-4 shadow" style="border: 3px solid #6f42c1; background: #f8f7ff;">
+                                <div class="card-body p-4">
+                                    <div class="d-flex justify-content-between align-items-start gap-3">
+                                        <div style="flex-grow: 1;">
+                                            <label class="form-label fw-bold mb-3" style="color: #6f42c1; font-size: 18px;">
+                                                <i class="fas fa-id-card fa-lg"></i> MATRICULATION NUMBER (INDEX)
+                                            </label>
+                                            <div style="background: white; padding: 20px; border-radius: 8px; border: 3px solid #6f42c1; min-height: 70px; display: flex; align-items: center; justify-content: center;">
+                                                <code id="previewIndexNumber" style="font-size: 26px; color: #6f42c1; font-weight: 900; letter-spacing: 2px; text-align: center;">
+                                                    ⏳ Select programme above...
+                                                </code>
+                                            </div>
+                                            <small class="text-muted d-block mt-3" style="font-size: 14px;">
+                                                <strong>🎓 Auto-generated unique index number</strong>
+                                                <br><em>Format: PPYYSSS (Programme-Year-Serial)</em>
+                                            </small>
+                                        </div>
+                                        <button type="button" class="btn btn-primary btn-lg ms-3" style="margin-top: 35px; white-space: nowrap;" title="Copy index number to clipboard" onclick="copyToClipboard('previewIndexNumber')">
+                                            <i class="fas fa-copy fa-lg"></i> Copy
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CRITICAL CHECKLIST -->
+                            <div class="alert alert-danger mb-0" role="alert" style="border-width: 3px; background-color: #ffe5e5;">
+                                <h5 class="alert-heading mb-3" style="color: #d32f2f;">
+                                    <i class="fas fa-exclamation-triangle fa-lg"></i> 
+                                    <strong>BEFORE YOU SUBMIT - VERIFY THESE ITEMS:</strong>
+                                </h5>
+                                <ul class="mb-2" style="margin-left: 24px; font-size: 16px; font-weight: 500;">
+                                    <li><span id="check1" style="color: #999;">✓</span> <strong>Username displayed above?</strong> (Should look like: something@st.vtiu.edu.gh)</li>
+                                    <li><span id="check2" style="color: #999;">✓</span> <strong>Password displayed above?</strong> (Should show random characters)</li>
+                                    <li><span id="check3" style="color: #999;">✓</span> <strong>Index Number displayed above?</strong> (Should be 7 digits like PPYYSSS)</li>
+                                    <li><span id="check4" style="color: #999;">✓</span> <strong>All three credentials copied to safe location?</strong></li>
+                                    <li><span id="check5" style="color: #999;">✓</span> <strong>Ready to provide to student?</strong></li>
+                                </ul>
+                                <hr class="my-2">
+                                <p class="mb-0">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Use the "Copy Both" button below to save both credentials at once</strong>
+                                </p>
+                            </div>
+
+                            <!-- COPY BOTH BUTTON -->
+                            <button type="button" class="btn btn-success btn-xl w-100 mt-4" style="font-size: 18px; padding: 20px; font-weight: bold;" onclick="copyBothCredentials()">
+                                <i class="fas fa-copy fa-lg"></i> <strong>COPY BOTH USERNAME & PASSWORD</strong>
+                            </button>
+                        </div>
+
+                        <!-- Profile Picture Section -->
+                        <div class="form-section mb-4">
+                            <h5 class="card-title border-bottom pb-3 mb-3">
+                                <i class="fas fa-image text-primary"></i> Profile Picture
+                            </h5>
+
+                            <div class="row">
+                                <!-- File Input -->
+                                <div class="col-md-8 mb-3">
+                                    <label for="profile_picture" class="form-label">Upload Photo</label>
+                                    <input type="file" class="form-control" id="profile_picture" name="profile_picture" accept="image/*">
+                                    <small class="form-text text-muted">JPG, PNG, or GIF (max 5MB). Defaults to avatar if not provided.</small>
+                                </div>
+
+                                <!-- Image Preview -->
+                                <div class="col-md-4">
+                                    <label class="form-label">Preview</label>
+                                    <div style="border: 2px dashed #0d6efd; border-radius: 8px; padding: 10px; background-color: #f8f9fa; height: 150px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                        <img id="imagePreview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect fill='%23e9ecef' width='200' height='200'/%3E%3Cpath d='M60 80 L100 40 L140 80 L140 160 L60 160 Z' fill='%23adb5bd'/%3E%3Ccircle cx='115' cy='70' r='12' fill='%23adb5bd'/%3E%3C/svg%3E" alt="Image Preview" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                                    </div>
+                                    <small class="text-muted d-block mt-2" id="previewFileName">No image selected</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex gap-2 justify-content-between pt-4 border-top">
+                            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg" id="submitBtn" disabled title="Fill all required fields and verify credentials first">
+                                <i class="fas fa-user-check fa-lg"></i> <strong>Register Continuing Student</strong>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+console.log('✅ Enhanced Registration Form Script Loaded');
+
+// ============================================================
+// DOM ELEMENTS
+// ============================================================
+const firstNameInput = document.getElementById('first_name');
+const middleNameInput = document.getElementById('middle_name');
+const lastNameInput = document.getElementById('last_name');
+const usernameInput = document.getElementById('username');
+const passwordInput = document.getElementById('password');
+
+const previewUsername = document.getElementById('previewUsername');
+const previewPassword = document.getElementById('previewPassword');
+const toggleIcon = document.getElementById('toggleIcon');
+const regenerateBtn = document.getElementById('regenerateBtn');
+const submitBtn = document.getElementById('submitBtn');
+const noCredentialsAlert = document.getElementById('noCredentialsAlert');
+
+// ============================================================
+// GET CSRF TOKEN
+// ============================================================
+function getCSRFToken() {
+    // Try to get from meta tag first (most common)
+    let token = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (token) return token;
+    
+    // Try to get from cookie
+    const name = 'csrf_token=';
+    const decodedCookie = decodeURIComponent(document.cookie);
+    const cookieArray = decodedCookie.split(';');
+    for (let cookie of cookieArray) {
+        cookie = cookie.trim();
+        if (cookie.indexOf(name) === 0) {
+            return cookie.substring(name.length);
+        }
+    }
+    
+    // Fallback: get from hidden input in form if it exists
+    return document.querySelector('input[name="csrf_token"]')?.value || '';
+}
+
+const csrfToken = getCSRFToken();
+console.log(`🔐 CSRF Token retrieved: ${csrfToken.substring(0, 10)}...`);
+
+// ============================================================
+// GENERATE CREDENTIALS
+// ============================================================
+async function generateCredentials() {
+    const firstName = firstNameInput.value.trim();
+    const middleName = middleNameInput.value.trim();
+    const lastName = lastNameInput.value.trim();
+
+    console.log(`📝 Generating credentials for: ${firstName} ${middleName} ${lastName}`);
+
+    if (!firstName || !lastName) {
+        console.warn('⚠️ Missing first or last name');
+        usernameInput.value = '';
+        passwordInput.value = '';
+        previewUsername.innerHTML = '⏳ Enter first & last name above...';
+        previewPassword.innerHTML = '⏳ Enter first & last name above...';
+        previewUsername.style.color = '#999';
+        previewPassword.style.color = '#999';
+        noCredentialsAlert.style.display = 'block';
+        updateChecklist(false);
+        checkFormValidity();
+        return;
+    }
+
+    noCredentialsAlert.style.display = 'none';
+
+    try {
+        const response = await fetch('{{ url_for("admin.generate_student_credentials") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                first_name: firstName,
+                middle_name: middleName,
+                last_name: lastName
+            })
+        });
+
+        console.log(`📊 Response status: ${response.status}`);
+        const data = await response.json();
+        console.log('📦 API Response:', data);
+
+        if (response.ok && data.success) {
+            usernameInput.value = data.username;
+            passwordInput.value = data.password;
+            previewUsername.innerHTML = data.username;
+            previewPassword.innerHTML = data.password;
+            previewUsername.style.color = '#0d6efd';
+            previewPassword.style.color = '#dc3545';
+            
+            console.log(`✅ Credentials generated successfully!`);
+            console.log(`   Username: ${data.username}`);
+            console.log(`   Password: ${data.password}`);
+            
+            updateChecklist(true);
+        } else {
+            console.error('❌ API returned error:', data);
+            alert('❌ Failed to generate credentials: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('❌ Network error:', error);
+        alert('❌ Error: ' + error.message);
+    }
+
+    checkFormValidity();
+}
+
+// ============================================================
+// UPDATE CHECKLIST
+// ============================================================
+function updateChecklist(hasCredentials) {
+    const color = hasCredentials ? '#28a745' : '#999';
+    document.getElementById('check1').style.color = color;
+    document.getElementById('check2').style.color = color;
+    document.getElementById('check3').style.color = color;
+    document.getElementById('check4').style.color = color;
+}
+
+// ============================================================
+// FORM VALIDATION
+// ============================================================
+function checkFormValidity() {
+    const firstName = firstNameInput.value.trim();
+    const lastName = lastNameInput.value.trim();
+    const programme = document.getElementById('current_programme').value;
+    const level = document.getElementById('programme_level').value;
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+    const indexNumber = document.getElementById('index_number').value.trim();
+
+    const isValid = firstName && lastName && programme && level && username && password && indexNumber;
+
+    submitBtn.disabled = !isValid;
+    submitBtn.title = isValid ? '✅ Ready to register' : '⚠️ Complete all required fields and verify credentials';
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+[firstNameInput, middleNameInput, lastNameInput].forEach(input => {
+    input.addEventListener('change', generateCredentials);
+    input.addEventListener('input', generateCredentials);
+});
+
+document.getElementById('current_programme').addEventListener('change', function() {
+    generateIndexNumber();
+    checkFormValidity();
+});
+
+document.getElementById('programme_level').addEventListener('change', checkFormValidity);
+
+// ============================================================
+// IMAGE PREVIEW
+// ============================================================
+document.getElementById('profile_picture').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const imagePreview = document.getElementById('imagePreview');
+    const previewFileName = document.getElementById('previewFileName');
+    
+    if (file) {
+        // Check file type
+        if (!file.type.startsWith('image/')) {
+            alert('❌ Please select a valid image file');
+            this.value = '';
+            imagePreview.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"%3E%3Crect fill="%23e9ecef" width="200" height="200"/%3E%3Cpath d="M60 80 L100 40 L140 80 L140 160 L60 160 Z" fill="%23adb5bd"/%3E%3Ccircle cx="115" cy="70" r="12" fill="%23adb5bd"/%3E%3C/svg%3E';
+            previewFileName.textContent = 'No image selected';
+            previewFileName.style.color = '#6c757d';
+            return;
+        }
+        
+        // Check file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('❌ Image size must be less than 5MB');
+            this.value = '';
+            imagePreview.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"%3E%3Crect fill="%23e9ecef" width="200" height="200"/%3E%3Cpath d="M60 80 L100 40 L140 80 L140 160 L60 160 Z" fill="%23adb5bd"/%3E%3Ccircle cx="115" cy="70" r="12" fill="%23adb5bd"/%3E%3C/svg%3E';
+            previewFileName.textContent = 'No image selected';
+            previewFileName.style.color = '#6c757d';
+            return;
+        }
+        
+        // Read and display image
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            imagePreview.src = event.target.result;
+            previewFileName.textContent = `✅ ${file.name}`;
+            previewFileName.style.color = '#28a745';
+            console.log(`📸 Image selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+        };
+        reader.readAsDataURL(file);
+    } else {
+        // Reset preview
+        imagePreview.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"%3E%3Crect fill="%23e9ecef" width="200" height="200"/%3E%3Cpath d="M60 80 L100 40 L140 80 L140 160 L60 160 Z" fill="%23adb5bd"/%3E%3Ccircle cx="115" cy="70" r="12" fill="%23adb5bd"/%3E%3C/svg%3E';
+        previewFileName.textContent = 'No image selected';
+        previewFileName.style.color = '#6c757d';
+    }
+});
+
+// ============================================================
+// PASSWORD REGENERATION
+// ============================================================
+regenerateBtn.addEventListener('click', async function(e) {
+    e.preventDefault();
+    const firstName = firstNameInput.value.trim();
+    const middleName = middleNameInput.value.trim();
+    const lastName = lastNameInput.value.trim();
+
+    if (!firstName || !lastName) {
+        alert('⚠️ Please enter first name and last name first');
+        return;
+    }
+
+    console.log('🔄 Regenerating password...');
+
+    try {
+        const response = await fetch('{{ url_for("admin.generate_student_credentials") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                first_name: firstName,
+                middle_name: middleName,
+                last_name: lastName
+            })
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+            passwordInput.value = data.password;
+            previewPassword.innerHTML = data.password;
+            previewPassword.style.color = '#dc3545';
+            regenerateBtn.innerHTML = '<i class="fas fa-check fa-lg"></i>';
+            regenerateBtn.classList.add('btn-success');
+            regenerateBtn.classList.remove('btn-outline-danger');
+            setTimeout(() => {
+                regenerateBtn.innerHTML = '<i class="fas fa-sync-alt fa-lg"></i>';
+                regenerateBtn.classList.remove('btn-success');
+                regenerateBtn.classList.add('btn-outline-danger');
+            }, 2000);
+            console.log('✅ New password generated:', data.password);
+            checkFormValidity();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Failed to regenerate password');
+    }
+});
+
+// ============================================================
+// CLIPBOARD COPY
+// ============================================================
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    let text = element.textContent;
+
+    if (text.includes('⏳')) {
+        alert('⚠️ Credentials not yet generated. Enter first and last name above.');
+        return;
+    }
+
+    if (elementId === 'previewPassword' && text.includes('•')) {
+        alert('⚠️ Password is hidden. Click the eye icon to reveal before copying.');
+        return;
+    }
+
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target.closest('button');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> ✅ Copied!';
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+        }, 2000);
+        console.log('✅ Copied to clipboard:', text);
+    }).catch((err) => {
+        console.error('Clipboard error:', err);
+        alert('❌ Failed to copy');
+    });
+}
+
+function copyBothCredentials() {
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!username || !password || username.includes('⏳') || password.includes('⏳')) {
+        alert('⚠️ Credentials not yet generated. Enter first and last name above.');
+        return;
+    }
+
+    const text = `Username: ${username}\nPassword: ${password}`;
+    navigator.clipboard.writeText(text).then(() => {
+        alert('✅ Both credentials copied to clipboard!');
+    }).catch(() => {
+        alert('❌ Failed to copy');
+    });
+}
+
+// ============================================================
+// PASSWORD VISIBILITY TOGGLE
+// ============================================================
+function togglePasswordPreview() {
+    const isHidden = toggleIcon.classList.contains('fa-eye');
+    if (isHidden) {
+        previewPassword.innerHTML = passwordInput.value;
+        toggleIcon.classList.remove('fa-eye');
+        toggleIcon.classList.add('fa-eye-slash');
+    } else {
+        const pwd = passwordInput.value;
+        previewPassword.innerHTML = '•'.repeat(pwd.length);
+        toggleIcon.classList.add('fa-eye');
+        toggleIcon.classList.remove('fa-eye-slash');
+    }
+}
+
+// ============================================================
+// GENERATE INDEX NUMBER
+// ============================================================
+async function generateIndexNumber() {
+    const programme = document.getElementById('current_programme').value.trim();
+    const previewIndexNumber = document.getElementById('previewIndexNumber');
+    const indexNumberInput = document.getElementById('index_number');
+
+    console.log(`📋 Generating index number for programme: ${programme}`);
+
+    if (!programme) {
+        console.warn('⚠️ No programme selected');
+        indexNumberInput.value = '';
+        previewIndexNumber.innerHTML = '⏳ Select programme above...';
+        previewIndexNumber.style.color = '#999';
+        updateChecklist(false);
+        checkFormValidity();
+        return;
+    }
+
+    try {
+        const response = await fetch('{{ url_for("admin.generate_student_index") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                programme: programme
+            })
+        });
+
+        console.log(`📊 Index generation response status: ${response.status}`);
+        const data = await response.json();
+        console.log('📦 API Response:', data);
+
+        if (response.ok && data.success) {
+            indexNumberInput.value = data.index_number;
+            previewIndexNumber.innerHTML = data.index_number;
+            previewIndexNumber.style.color = '#6f42c1';
+            console.log(`✅ Index number generated successfully: ${data.index_number}`);
+            updateChecklist(true);
+        } else {
+            console.error('❌ API returned error:', data);
+            alert('❌ Failed to generate index number: ' + (data.error || 'Unknown error'));
+            indexNumberInput.value = '';
+            previewIndexNumber.innerHTML = '❌ Error generating index';
+            previewIndexNumber.style.color = '#dc3545';
+        }
+    } catch (error) {
+        console.error('❌ Network error:', error);
+        alert('❌ Error: ' + error.message);
+        indexNumberInput.value = '';
+        previewIndexNumber.innerHTML = '❌ Error generating index';
+        previewIndexNumber.style.color = '#dc3545';
+    }
+
+    checkFormValidity();
+}
+
+// ============================================================
+// FORM SUBMISSION
+// ============================================================
+document.getElementById('continuingStudentForm').addEventListener('submit', function(e) {
+    const firstName = firstNameInput.value.trim();
+    const lastName = lastNameInput.value.trim();
+    const programme = document.getElementById('current_programme').value;
+    const level = document.getElementById('programme_level').value;
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+    const indexNumber = document.getElementById('index_number').value.trim();
+
+    if (!firstName || !lastName || !programme || !level || !username || !password || !indexNumber) {
+        e.preventDefault();
+        alert('⚠️ Please fill in all required fields.');
+        return false;
+    }
+
+    const confirmMsg = `✅ VERIFY BEFORE REGISTERING
+
+📋 STUDENT DETAILS:
+  Name: ${firstName} ${lastName}
+  Programme: ${programme}
+  Level: ${level}
+  Index Number: ${indexNumber}
+
+🔐 CREDENTIALS:
+  Username: ${username}
+  Password: ${password}
+
+⚠️ IMPORTANT:
+  ✓ Save these credentials to a safe place
+  ✓ Credentials will be provided to student
+  ✓ Student MUST change password on first login
+  ✓ Index Number is their matriculation number
+
+Click OK to proceed with registration.`;
+
+    if (!confirm(confirmMsg)) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+// ============================================================
+// INITIAL LOAD
+// ============================================================
+window.addEventListener('load', function() {
+    console.log('📱 Page loaded. Ready for registration.');
+    generateCredentials();
+    checkFormValidity();
+});
+
+console.log('✅ All scripts initialized');
+</script>
+
+<style>
+.form-section {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #0d6efd;
+}
+
+.form-section h5 {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #333;
+}
+
+code {
+    background-color: transparent;
+    padding: 0;
+    font-family: 'Courier New', monospace;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,250 @@
+{% extends 'admin/layout.html' %}
+{% block title %}Fee Structures{% endblock %}
+
+{% block head_extra %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+    .fee-card {
+        border-left: 4px solid #0d6efd;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .fee-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        transform: translateY(-2px);
+    }
+    .fee-item {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+    }
+    .fee-item:last-child {
+        border-bottom: none;
+    }
+    .fee-item-amount {
+        font-weight: 600;
+        color: #0d6efd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h4 class="mb-1"><i class="fas fa-receipt"></i> Fee Structures</h4>
+            <p class="text-muted mb-0">View and manage programme fee structures</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <input type="search" id="searchStructures" class="form-control" placeholder="🔍 Search by programme..." style="min-width: 250px;">
+            <select id="filterLevel" class="form-select" style="max-width: 150px;">
+                <option value="">All Levels</option>
+                <option value="100">100 (Freshers)</option>
+                <option value="200">200</option>
+                <option value="300">300</option>
+                <option value="400">400</option>
+            </select>
+            <a href="{{ url_for('finance.assign_fees') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Fee Structure
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Structures</h6>
+                    <h3 class="mb-0" id="totalStructures">0</h3>
+                    <small class="text-muted">Fee configurations</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Revenue</h6>
+                    <h3 class="text-success mb-0" id="totalRevenue">GHS 0.00</h3>
+                    <small class="text-muted">Across all fees</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Average Fee</h6>
+                    <h3 class="mb-0" id="averageFee">GHS 0.00</h3>
+                    <small class="text-muted">Per structure</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Fee Items</h6>
+                    <h3 class="mb-0" id="totalItems">0</h3>
+                    <small class="text-muted">Total configured items</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Structures Display -->
+    <div class="card shadow">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">Programme Fee Structures</h6>
+        </div>
+        <div class="card-body p-0">
+            {% if structures %}
+                <div class="row g-3 p-3" id="structuresContainer">
+                    {% for structure in structures %}
+                        {% set items = structure.items|safe %}
+                        <div class="col-lg-6 col-xl-4 structure-row" data-level="{{ structure.level }}" data-programme="{{ structure.programme_name|lower }}" data-search-text="{{ structure.programme_name|lower }} level {{ structure.level }}">
+                            <div class="card fee-card shadow-sm h-100">
+                                <div class="card-body">
+                                    <!-- Header -->
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div class="flex-grow-1">
+                                            <h6 class="card-title mb-1">
+                                                <i class="fas fa-book"></i> {{ structure.programme_name }}
+                                            </h6>
+                                            <small class="text-muted d-block">Level {{ structure.level }} • {{ structure.study_format }}</small>
+                                            <small class="text-muted d-block">{{ structure.academic_year|start_year }} - Sem {{ structure.semester }}</small>
+                                        </div>
+                                        <span class="badge bg-primary">{{ structure.level }}</span>
+                                    </div>
+
+                                    <hr class="my-2">
+
+                                    <!-- Fee Details -->
+                                    <div class="mb-3">
+                                        <h6 class="text-muted small mb-2">Fee Breakdown</h6>
+                                        <div class="fee-items">
+                                            {% if structure.items %}
+                                                {% set items_list = structure.items|from_json %}
+                                                {% for item in items_list %}
+                                                    <div class="fee-item">
+                                                        <span>{{ item.description }}</span>
+                                                        <span class="fee-item-amount">GHS {{ "%.2f"|format(item.amount) }}</span>
+                                                    </div>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-2">
+
+                                    <!-- Total -->
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <strong class="text-muted">Total Fee:</strong>
+                                        <h5 class="mb-0 text-success">GHS {{ "%.2f"|format(structure.amount) }}</h5>
+                                    </div>
+
+                                    <!-- Actions -->
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ url_for('finance.edit_fee_group', group_id=structure.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <form method="POST" action="{{ url_for('finance.delete_fee', fee_id=structure.id) }}" style="flex-grow: 1;" onsubmit="return confirm('Are you sure?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center p-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No fee structures found.</p>
+                    <a href="{{ url_for('finance.assign_fees') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create First Structure
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Calculate summaries
+    function updateSummaries() {
+        const rows = Array.from(document.querySelectorAll('.structure-row'));
+        const visibleRows = rows.filter(row => row.style.display !== 'none');
+        
+        let totalStructures = 0;
+        let totalRevenue = 0;
+        let totalItems = 0;
+
+        visibleRows.forEach(row => {
+            totalStructures++;
+            const text = row.innerText;
+            
+            // Extract total fee amount
+            const feeMatch = text.match(/Total Fee:.*?GHS\s*([\d.,]+)/i);
+            if (feeMatch) {
+                totalRevenue += parseFloat(feeMatch[1].replace(/,/g, ''));
+            }
+            
+            // Count fee items
+            const itemsMatch = text.match(/Fee Breakdown[\s\S]*?GHS/g);
+            if (itemsMatch) {
+                totalItems += (text.match(/GHS/g) || []).length - 1; // -1 for the total
+            }
+        });
+
+        const averageFee = totalStructures > 0 ? totalRevenue / totalStructures : 0;
+
+        document.getElementById('totalStructures').textContent = totalStructures;
+        document.getElementById('totalRevenue').textContent = 'GHS ' + totalRevenue.toFixed(2);
+        document.getElementById('averageFee').textContent = 'GHS ' + averageFee.toFixed(2);
+        document.getElementById('totalItems').textContent = totalItems || '0';
+    }
+
+    updateSummaries();
+
+    // Search functionality
+    document.getElementById('searchStructures').addEventListener('keyup', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        
+        document.querySelectorAll('.structure-row').forEach(row => {
+            const searchText = row.getAttribute('data-search-text') || '';
+            if (searchText.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        updateSummaries();
+    });
+
+    // Filter by level
+    document.getElementById('filterLevel').addEventListener('change', function(e) {
+        const filterValue = e.target.value;
+        const searchTerm = document.getElementById('searchStructures').value.toLowerCase();
+        
+        document.querySelectorAll('.structure-row').forEach(row => {
+            const level = row.getAttribute('data-level');
+            const searchText = row.getAttribute('data-search-text') || '';
+            
+            if ((filterValue === '' || level === filterValue) && searchText.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        updateSummaries();
+    });
+});
+</script>
+{% endblock %}

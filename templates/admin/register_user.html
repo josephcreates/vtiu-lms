@@ -1,0 +1,624 @@
+{% extends "admin/layout.html" %}
+{% block title %}Register New User (Teacher or Admin){% endblock %}
+
+{% block content %}
+<style>
+  .role-section { display: none; }
+  .role-section.active { display: block; }
+  .permission-card { background: #f8f9fa; border-left: 3px solid #0d6efd; padding: 1rem; border-radius: 0.5rem; }
+  .role-badge { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 0.3rem; font-size: 0.85rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; }
+  .badge-teacher { background: #d1ecf1; color: #0c5460; }
+  .badge-finance { background: #d4edda; color: #155724; }
+  .badge-academic { background: #cce5ff; color: #004085; }
+  .badge-admissions { background: #f8d7da; color: #721c24; }
+  .badge-superadmin { background: #fff3cd; color: #856404; }
+</style>
+
+<div class="container py-3">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h2 class="mb-0">Register New User</h2>
+      <small class="text-muted">Create a teacher account or admin account with custom permissions.</small>
+    </div>
+    <div class="text-end">
+      {% if is_superadmin %}
+        <span class="badge bg-warning text-dark">⭐ Super Admin Mode</span>
+      {% else %}
+        <span class="badge bg-primary">👤 Admin</span>
+      {% endif %}
+      <div class="small mt-1">Your Role: <strong>{{ current_user.role|title }}</strong></div>
+    </div>
+  </div>
+
+  <form id="registerForm" method="POST" action="{{ url_for('admin.register_user') }}" enctype="multipart/form-data" novalidate>
+    {{ form.hidden_tag() }}
+
+    <!-- ====== BASIC INFO (All Roles) ====== -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <strong>Basic Information</strong>
+        <span class="text-muted small">Required for all roles</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <!-- Profile Picture -->
+          <div class="col-md-3 d-flex flex-column align-items-center">
+            <label for="profile_picture" class="form-label w-100">Profile Picture</label>
+            <div id="profileDropZone" class="w-100 profile-dropzone text-center" tabindex="0" role="button">
+              <input type="file" name="profile_picture" id="profile_picture" class="form-control form-control-sm visually-hidden" accept="image/*">
+              <div class="mt-1" style="max-width:150px;">
+                <img id="profilePreview" src="{{ url_for('static', filename='img/default-avatar.png') }}" alt="Profile Preview" class="img-thumbnail" style="max-width:150px; max-height:150px;">
+              </div>
+              <div class="d-grid mt-2">
+                <button type="button" id="removeProfileBtn" class="btn btn-sm btn-outline-danger d-none">Remove Picture</button>
+                <button type="button" id="chooseProfileBtn" class="btn btn-sm btn-outline-secondary mt-2">Choose file...</button>
+              </div>
+              <div class="form-text small mt-2">Max 2MB. JPG/PNG/GIF/WEBP.</div>
+            </div>
+          </div>
+
+          <!-- Names, Email, Role -->
+          <div class="col-md-9">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                <input type="text" name="first_name" id="first_name" class="form-control form-control-sm" required>
+              </div>
+              <div class="col-md-4">
+                <label for="middle_name" class="form-label">Middle Name</label>
+                <input type="text" name="middle_name" id="middle_name" class="form-control form-control-sm">
+              </div>
+              <div class="col-md-4">
+                <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                <input type="text" name="last_name" id="last_name" class="form-control form-control-sm" required>
+              </div>
+
+              <div class="col-md-12">
+                <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+                <select name="role" id="role" class="form-select form-select-sm" required onchange="updateRoleDisplay()">
+                  <option value="">— Select Role —</option>
+x                  <option value="student">Student (@st.vtiu.edu.gh)</option>
+                  <option value="teacher">Teacher</option>
+                  {% if is_superadmin %}
+                    <option value="finance_admin">💰 Finance Admin</option>
+                    <option value="academic_admin">📚 Academic Admin</option>
+                    <option value="admissions_admin">👥 Admissions Admin</option>
+                    <option value="superadmin">⭐ Super Admin</option>
+                  {% endif %}
+                </select>
+                <small id="roleInfo" class="form-text text-muted mt-2"></small>
+              </div>
+
+              <div class="col-md-12">
+                <label for="email" class="form-label">Login Email</label>
+                <input type="email" name="email" id="email" class="form-control form-control-sm" readonly>
+                <small id="generatedEmailHint" class="form-text text-muted" aria-live="polite">Select a role and enter the name to generate an email.</small>
+              </div>
+
+              <div class="col-md-12">
+                <label class="form-label">Temporary Password <span class="text-danger">*</span></label>
+                <div id="password-options" class="mb-2 small" aria-live="polite"></div>
+                <div class="input-group input-group-sm">
+                  <input type="text" name="password" id="password" class="form-control" placeholder="Or type your own" required>
+                  <button class="btn btn-outline-secondary" type="button" id="copyPasswordBtn">Copy</button>
+                </div>
+                <div class="progress mt-2" style="height:8px;" role="progressbar">
+                  <div id="pwStrengthBar" class="progress-bar" style="width: 0%"></div>
+                </div>
+                <div id="pwStrengthText" class="small mt-1 text-muted">Strength: —</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== STUDENT-SPECIFIC FIELDS ====== -->
+    <div id="student-fields" class="role-section card shadow-sm mb-4">
+      <div class="card-header"><strong>🎓 Student Information</strong></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="student_dob" class="form-label">Date of Birth</label>
+            <input type="date" name="dob" id="student_dob" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label for="student_gender" class="form-label">Gender</label>
+            <select name="gender" id="student_gender" class="form-select">
+              <option value="">Select Gender</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="current_programme" class="form-label">Programme <span class="text-danger">*</span></label>
+            <select name="current_programme" id="current_programme" class="form-select">
+              <option value="">Select Programme</option>
+              {% for programme in programmes %}
+                <option value="{{ programme[0] }}">{{ programme[1] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="programme_level" class="form-label">Level <span class="text-danger">*</span></label>
+            <select name="programme_level" id="programme_level" class="form-select">
+              <option value="">Select Level</option>
+              <option value="100">Level 100</option>
+              <option value="200">Level 200</option>
+              <option value="300">Level 300</option>
+              <option value="400">Level 400</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="study_format" class="form-label">Study Format</label>
+            <select name="study_format" id="study_format" class="form-select">
+              <option value="Regular">Regular</option>
+              <option value="Online">Online</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="academic_year" class="form-label">Academic Year</label>
+            <input type="text" id="academic_year_display" class="form-control" value="{{ current_academic_year or 'Not configured' }}" readonly>
+            <input type="hidden" name="academic_year" value="{{ current_academic_year or '' }}">
+          </div>
+          <div class="col-md-4">
+            <label for="semester" class="form-label">Semester</label>
+            <select name="semester" id="semester" class="form-select">
+              <option value="">Select Semester</option>
+              <option value="1">Semester 1</option>
+              <option value="2">Semester 2</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="index_number" class="form-label">Index Number</label>
+            <input type="text" name="index_number" id="index_number" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label for="phone" class="form-label">Phone Number</label>
+            <input type="tel" name="phone" id="phone" class="form-control">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== TEACHER-SPECIFIC FIELDS ====== -->
+    <div id="teacher-fields" class="role-section card shadow-sm mb-4">
+      <div class="card-header"><strong>👨‍🏫 Teacher Information</strong></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="teacher_dob" class="form-label">Date of Birth</label>
+            <input type="date" name="dob" id="teacher_dob" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label for="teacher_gender" class="form-label">Gender</label>
+            <select name="gender" id="teacher_gender" class="form-select">
+              <option value="">Select Gender</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="teacher_nationality" class="form-label">Nationality</label>
+            <input type="text" name="nationality" id="teacher_nationality" class="form-control">
+          </div>
+
+          <div class="col-md-6">
+            <label for="qualification" class="form-label">Qualification</label>
+            <input type="text" name="qualification" id="qualification" class="form-control" placeholder="e.g., B.Ed, M.Ed">
+          </div>
+          <div class="col-md-6">
+            <label for="specialization" class="form-label">Specialization</label>
+            <input type="text" name="specialization" id="specialization" class="form-control" placeholder="e.g., Mathematics">
+          </div>
+
+          <div class="col-md-4">
+            <label for="years_of_experience" class="form-label">Years of Experience</label>
+            <input type="number" name="years_of_experience" id="years_of_experience" class="form-control" min="0">
+          </div>
+          <div class="col-md-4">
+            <label for="subjects_taught" class="form-label">Subjects Taught</label>
+            <input type="text" name="subjects_taught" id="subjects_taught" class="form-control" placeholder="e.g., English, Math">
+          </div>
+          <div class="col-md-4">
+            <label for="employment_type" class="form-label">Employment Type</label>
+            <select name="employment_type" id="employment_type" class="form-select">
+              <option value="">Select Type</option>
+              <option>Full-time</option>
+              <option>Part-time</option>
+              <option>Contract</option>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label for="employee_id" class="form-label">Employee ID</label>
+            <input type="text" name="employee_id" id="employee_id" class="form-control" readonly>
+          </div>
+          <div class="col-md-4">
+            <label for="department" class="form-label">Department</label>
+            <input type="text" name="department" id="department" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label for="date_of_hire" class="form-label">Date of Hire</label>
+            <input type="date" name="date_of_hire" id="date_of_hire" class="form-control">
+          </div>
+          <div class="col-md-12">
+            <label for="office_location" class="form-label">Office Location</label>
+            <input type="text" name="office_location" id="office_location" class="form-control">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== ADMIN-SPECIFIC FIELDS ====== -->
+    <div id="admin-fields" class="role-section card shadow-sm mb-4">
+      <div class="card-header"><strong>⚙️ Admin Information</strong></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="admin_id" class="form-label">Admin ID</label>
+            <input type="text" name="admin_id" id="admin_id" class="form-control" readonly>
+          </div>
+          <div class="col-md-4">
+            <label for="job_title" class="form-label">Job Title</label>
+            <input type="text" name="job_title" id="job_title" class="form-control" placeholder="e.g., Finance Manager">
+          </div>
+          <div class="col-md-4">
+            <label for="department_admin" class="form-label">Department</label>
+            <input type="text" name="department_admin" id="department_admin" class="form-control" placeholder="e.g., Finance">
+          </div>
+
+          <div class="col-md-12">
+            <label for="phone" class="form-label">Phone Number</label>
+            <input type="tel" name="phone" id="phone" class="form-control">
+          </div>
+
+          <div class="col-md-12">
+            <label for="notes" class="form-label">Notes (optional)</label>
+            <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Any additional information..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== PERMISSIONS (ADMINS ONLY) ====== -->
+    <div id="permissions-section" class="role-section d-none card shadow-sm mb-4">
+      <div class="card-header"><strong>🔐 Permissions</strong></div>
+      <div class="card-body">
+        <p class="text-muted mb-3">Select which areas this admin can access and manage:</p>
+
+        <div class="row g-3">
+          <!-- Finance Permissions -->
+          <div class="col-md-6">
+            <div class="permission-card">
+              <h6 class="mb-2">💰 Finance</h6>
+              <div class="form-check form-check-sm">
+                <input type="checkbox" name="can_view_finances" id="can_view_finances" class="form-check-input">
+                <label class="form-check-label" for="can_view_finances">View Finances</label>
+              </div>
+              <div class="form-check form-check-sm">
+                <input type="checkbox" name="can_edit_finances" id="can_edit_finances" class="form-check-input">
+                <label class="form-check-label" for="can_edit_finances">Edit/Approve Finances</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Academic Permissions -->
+          <div class="col-md-6">
+            <div class="permission-card">
+              <h6 class="mb-2">📚 Academics</h6>
+              <div class="form-check form-check-sm">
+                <input type="checkbox" name="can_view_academics" id="can_view_academics" class="form-check-input">
+                <label class="form-check-label" for="can_view_academics">View Academic Records</label>
+              </div>
+              <div class="form-check form-check-sm">
+                <input type="checkbox" name="can_edit_academics" id="can_edit_academics" class="form-check-input">
+                <label class="form-check-label" for="can_edit_academics">Edit Academic Records</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Admissions Permissions -->
+          <div class="col-md-6">
+            <div class="permission-card">
+              <h6 class="mb-2">👥 Admissions</h6>
+              <div class="form-check form-check-sm">
+                <input type="checkbox" name="can_view_admissions" id="can_view_admissions" class="form-check-input">
+                <label class="form-check-label" for="can_view_admissions">View Admissions</label>
+              </div>
+              <div class="form-check form-check-sm">
+                <input type="checkbox" name="can_edit_admissions" id="can_edit_admissions" class="form-check-input">
+                <label class="form-check-label" for="can_edit_admissions">Edit/Approve Admissions</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- System Permissions -->
+          <div class="col-md-6">
+            <div class="permission-card">
+              <h6 class="mb-2">⚙️ System</h6>
+              <div class="form-check form-check-sm">
+                <input type="checkbox" name="can_manage_users" id="can_manage_users" class="form-check-input">
+                <label class="form-check-label" for="can_manage_users">Manage Users</label>
+              </div>
+              <div class="form-check form-check-sm">
+                <input type="checkbox" name="can_view_reports" id="can_view_reports" class="form-check-input">
+                <label class="form-check-label" for="can_view_reports">View Reports</label>
+              </div>
+              <div class="form-check form-check-sm">
+                <input type="checkbox" name="can_export_data" id="can_export_data" class="form-check-input">
+                <label class="form-check-label" for="can_export_data">Export Data</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert alert-info mt-3 small">
+          <strong>💡 Tip:</strong> Use role presets below to automatically set permissions based on common roles.
+        </div>
+
+        <div class="mt-3">
+          <label class="form-label">Quick Presets:</label>
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-outline-success" onclick="applyPreset('finance_admin')">💰 Finance Admin</button>
+            <button type="button" class="btn btn-sm btn-outline-info" onclick="applyPreset('academic_admin')">📚 Academic Admin</button>
+            <button type="button" class="btn btn-sm btn-outline-warning" onclick="applyPreset('admissions_admin')">👥 Admissions Admin</button>
+            <button type="button" class="btn btn-sm btn-outline-dark" onclick="applyPreset('superadmin')">⭐ Super Admin</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== ACTIONS ====== -->
+    <div class="d-flex gap-2 mb-4">
+      <button id="submitBtn" type="submit" class="btn btn-success">
+        <span class="spinner-border spinner-border-sm me-2 d-none" id="submitSpinner" role="status" aria-hidden="true"></span>
+        Register User
+      </button>
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Cancel</a>
+      <button type="reset" class="btn btn-outline-secondary">Reset</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  // --- Dynamic role switching ---
+  function updateRoleDisplay() {
+    const role = document.getElementById('role').value;
+    updateGeneratedEmail();
+    
+    // Hide all role sections
+    document.querySelectorAll('.role-section').forEach(el => el.classList.remove('active'));
+    document.getElementById('permissions-section').classList.add('d-none');
+    
+    // Show relevant sections
+    if (role === 'student') {
+      document.getElementById('student-fields').classList.add('active');
+      document.getElementById('teacher-fields').classList.remove('active');
+      document.getElementById('admin-fields').classList.remove('active');
+      document.getElementById('roleInfo').textContent = '✓ Student registration using the @st.vtiu.edu.gh email domain';
+    }
+    else if (role === 'teacher') {
+      document.getElementById('teacher-fields').classList.add('active');
+      document.getElementById('admin-fields').classList.remove('active');
+      document.getElementById('roleInfo').textContent = '✓ Teacher registration';
+
+      fetchTeacherID();   // only generates if empty
+    }
+
+    else if (role.includes('admin')) {
+      document.getElementById('admin-fields').classList.add('active');
+      document.getElementById('teacher-fields').classList.remove('active');
+      document.getElementById('permissions-section').classList.remove('d-none');
+
+      fetchAdminID(role); // only generates if empty
+
+      const roleLabels = {
+        'finance_admin': '💰 Finance Admin - Manages payments, fees, and financial reports',
+        'academic_admin': '📚 Academic Admin - Manages grades, courses, and academic records',
+        'admissions_admin': '👥 Admissions Admin - Manages student admissions and applications',
+        'superadmin': '⭐ Super Admin - Full access to all system features'
+      };
+      document.getElementById('roleInfo').textContent = roleLabels[role] || '';
+
+      applyPreset(role);
+    }
+  }
+
+  function updateGeneratedEmail() {
+    const clean = value => (value || '').replace(/[^a-zA-Z]/g, '').toLowerCase();
+    const first = clean(document.getElementById('first_name').value);
+    const middle = clean(document.getElementById('middle_name').value);
+    const last = clean(document.getElementById('last_name').value);
+    const role = document.getElementById('role').value;
+    const domains = {
+      student: 'st.vtiu.edu.gh',
+      teacher: 'tch.vtiu.edu.gh',
+      finance_admin: 'finance.vtiu.edu.gh',
+      academic_admin: 'academics.vtiu.edu.gh',
+      admissions_admin: 'admissions.vtiu.edu.gh',
+      superadmin: 'admin.vtiu.edu.gh'
+    };
+
+    const emailField = document.getElementById('email');
+    const emailHint = document.getElementById('generatedEmailHint');
+    if (!first || !last || !domains[role]) {
+      emailField.value = '';
+      emailHint.textContent = 'Select a role and enter the name to generate an email.';
+      return;
+    }
+
+    emailField.value = `${first[0]}${middle ? middle[0] : ''}${last}@${domains[role]}`;
+    emailHint.textContent = 'Generated automatically from the name and role.';
+  }
+
+  ['first_name', 'middle_name', 'last_name'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateGeneratedEmail);
+  });
+  document.getElementById('role').addEventListener('change', updateGeneratedEmail);
+  document.getElementById('registerForm').addEventListener('submit', updateGeneratedEmail);
+
+  function fetchAdminID(role) {
+    const adminField = document.getElementById('admin_id');
+
+    if (adminField.value) return;  // 🔥 do nothing if already generated
+
+    fetch(`/admin/generate-admin-id?role=${role}`)
+      .then(res => res.json())
+      .then(data => {
+        adminField.value = data.admin_id || '';
+      });
+  }
+
+  function fetchTeacherID() {
+    const teacherField = document.getElementById('employee_id');
+
+    if (teacherField.value) return; // 🔥 keep existing ID
+
+     fetch(`/admin/generate-employee-id`)      .then(res => res.json())
+      .then(data => {
+        teacherField.value = data.teacher_id || '';
+      });
+  }
+
+  function applyPreset(role) {
+    const presets = {
+      'finance_admin': {
+        'can_view_finances': true, 'can_edit_finances': true,
+        'can_view_academics': false, 'can_edit_academics': false,
+        'can_view_admissions': false, 'can_edit_admissions': false,
+        'can_manage_users': false, 'can_view_reports': true, 'can_export_data': true
+      },
+      'academic_admin': {
+        'can_view_finances': false, 'can_edit_finances': false,
+        'can_view_academics': true, 'can_edit_academics': true,
+        'can_view_admissions': false, 'can_edit_admissions': false,
+        'can_manage_users': false, 'can_view_reports': true, 'can_export_data': true
+      },
+      'admissions_admin': {
+        'can_view_finances': false, 'can_edit_finances': false,
+        'can_view_academics': true, 'can_edit_academics': false,
+        'can_view_admissions': true, 'can_edit_admissions': true,
+        'can_manage_users': false, 'can_view_reports': true, 'can_export_data': true
+      },
+      'superadmin': {
+        'can_view_finances': true, 'can_edit_finances': true,
+        'can_view_academics': true, 'can_edit_academics': true,
+        'can_view_admissions': true, 'can_edit_admissions': true,
+        'can_manage_users': true, 'can_view_reports': true, 'can_export_data': true
+      }
+    };
+    
+    const preset = presets[role] || {};
+    Object.keys(preset).forEach(perm => {
+      const el = document.getElementById(perm);
+      if (el) el.checked = preset[perm];
+    });
+  }
+
+  // --- Password handling (keep existing logic) ---
+  function loadPasswordOptions() {
+    fetch('{{ url_for("admin.generate_passwords") }}')
+      .then(res => res.json())
+      .then(data => {
+        const opts = document.getElementById('password-options');
+        opts.innerHTML = '';
+        (data.passwords || []).forEach((pw, i) => {
+          const id = `pw${i}`;
+          const html = `
+            <div class="form-check form-check-inline me-3">
+              <input class="form-check-input" type="radio" name="passwordOption" id="${id}" value="${pw}">
+              <label class="form-check-label me-2" for="${id}">${pw}</label>
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-password="${pw}">📋</button>
+            </div>
+          `;
+          opts.insertAdjacentHTML('beforeend', html);
+        });
+        
+        document.querySelectorAll('input[name="passwordOption"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            document.getElementById('password').value = radio.value;
+            evaluateStrength(radio.value);
+          });
+        });
+        
+        document.querySelectorAll('button[data-password]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            navigator.clipboard.writeText(btn.dataset.password).then(() => {
+              btn.textContent = '✅';
+              setTimeout(() => btn.textContent = '📋', 1200);
+            });
+          });
+        });
+      });
+  }
+
+  function evaluateStrength(pw) {
+    let score = 0;
+    if (pw) {
+      const len = pw.length;
+      const hasLower = /[a-z]/.test(pw);
+      const hasUpper = /[A-Z]/.test(pw);
+      const hasNum = /[0-9]/.test(pw);
+      const hasSym = /[^A-Za-z0-9]/.test(pw);
+      score = (len >= 8) + (len >= 12) + hasLower + hasUpper + hasNum + hasSym;
+    }
+    const pct = Math.min(100, Math.round((score/6)*100));
+    const bar = document.getElementById('pwStrengthBar');
+    bar.style.width = pct + '%';
+    bar.classList.remove('bg-danger','bg-warning','bg-success');
+    const labels = ['Weak', 'Weak', 'Medium', 'Medium', 'Strong', 'Strong', 'Very Strong'];
+    const text = labels[score] || 'Weak';
+    if (pct < 40) bar.classList.add('bg-danger');
+    else if (pct < 70) bar.classList.add('bg-warning');
+    else bar.classList.add('bg-success');
+    document.getElementById('pwStrengthText').textContent = 'Strength: ' + text;
+  }
+
+  document.getElementById('password').addEventListener('input', (e) => evaluateStrength(e.target.value));
+  document.getElementById('copyPasswordBtn').addEventListener('click', () => {
+    const pw = document.getElementById('password').value;
+    if (!pw) return;
+    navigator.clipboard.writeText(pw).then(() => {
+      const btn = document.getElementById('copyPasswordBtn');
+      btn.textContent = 'Copied';
+      setTimeout(() => btn.textContent = 'Copy', 1200);
+    });
+  });
+
+  // --- Profile picture (keep existing logic) ---
+  const profileInput = document.getElementById('profile_picture');
+  const previewImg = document.getElementById('profilePreview');
+  const removeBtn = document.getElementById('removeProfileBtn');
+  const chooseBtn = document.getElementById('chooseProfileBtn');
+  
+  chooseBtn.addEventListener('click', () => profileInput.click());
+  profileInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => previewImg.src = ev.target.result;
+      reader.readAsDataURL(file);
+      removeBtn.classList.remove('d-none');
+    }
+  });
+  removeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    previewImg.src = '{{ url_for("static", filename="uploads/profile_pictures/default_avatar.png") }}';
+    removeBtn.classList.add('d-none');
+    profileInput.value = '';
+  });
+
+  // --- Init ---
+  document.addEventListener('DOMContentLoaded', () => {
+    loadPasswordOptions();
+    evaluateStrength('');
+    updateGeneratedEmail();
+    document.getElementById('registerForm').addEventListener('reset', () => {
+      window.setTimeout(updateGeneratedEmail, 0);
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends 'admin/layout.html' %}
+{% block title %}Admission Vouchers | Admin{% endblock %}
+
+{% block content %}
+<div class="container py-1">
+
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="fw-bold text-primary mb-0">
+      <i class="fas fa-ticket-alt"></i> Admission Vouchers
+    </h5>
+    <a href="{{ url_for('admin.manage_vouchers') }}" class="btn btn-success btn-sm shadow-sm">
+      <i class="fas fa-plus-circle"></i> New Voucher
+    </a>
+  </div>
+
+  <!-- Generate Vouchers Form -->
+  <div class="card shadow-sm border-0 mb-2">
+    <div class="card-header bg-gradient text-white fs-8"
+         style="background: linear-gradient(90deg, #6a11cb, #2575fc); padding: 0.5rem 1rem;">
+      <i class="fas fa-magic"></i> Generate Multiple Vouchers
+    </div>
+    <div class="card-body p-2">
+      <form method="POST" class="row g-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold fs-8">Number of Vouchers</label>
+          <input type="number" name="count" class="form-control form-control-sm" placeholder="Enter number" required>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold fs-8">Amount (GHS)</label>
+          <input type="number" name="amount" class="form-control form-control-sm" placeholder="Enter amount" required>
+        </div>
+
+        <div class="col-md-4 d-grid align-self-end">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fas fa-magic me-1"></i> Generate
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Vouchers Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-gradient text-white fs-8" style="background: linear-gradient(90deg, #1d4ed8, #22c55e); padding: 0.5rem 1rem;">
+      <i class="fas fa-list"></i> Existing Vouchers
+    </div>
+    <div class="card-body table-responsive p-0">
+      <table class="table align-middle mb-0 table-sm fs-8">
+    <thead class="table-light">
+        <tr>
+            <th class="fw-6">No.</th>
+            <th class="fw-6">PIN</th>
+            <th class="fw-6">Serial</th>
+            <th class="fw-6">Amount</th>
+            <th class="fw-6">Purchased?</th>
+            <th class="fw-6">Purchaser</th>
+            <th class="fw-6">Used?</th>
+            <th class="fw-6">Used By</th>
+            <th class="fw-6">Used At</th>
+            <th class="fw-6">Valid Until</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for v in vouchers %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td><code>{{ v.pin }}</code></td>
+            <td><code>{{ v.serial }}</code></td>
+            <td>{{ v.amount }}</td>
+            
+            <td>
+                {% if v.purchaser_email %}
+                    <span class="badge bg-success">Yes</span>
+                {% else %}
+                    <span class="badge bg-secondary">No</span>
+                {% endif %}
+            </td>
+            <td>{{ v.purchaser_email or '—' }}</td>
+
+            <td>
+                {% if v.is_used %}
+                    <span class="badge bg-success">Yes</span>
+                {% else %}
+                    <span class="badge bg-secondary">No</span>
+                {% endif %}
+            </td>
+            <td>{{ v.used_by or '—' }}</td>
+            <td>{{ v.used_at.strftime('%d %b %Y') if v.used_at else '—' }}</td>
+            <td>{{ v.valid_until.strftime('%d %b %Y') if v.valid_until else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="10" class="text-center text-muted py-2 fs-8">
+                No vouchers found.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Optional: Custom Styles -->
+<style>
+.table-hover tbody tr:hover {
+  background-color: #f0f4ff;
+  transition: 0.2s;
+}
+.card-header i {
+  margin-right: 5px;
+}
+</style>
+{% endblock %}

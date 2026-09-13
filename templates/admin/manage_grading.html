@@ -1,0 +1,119 @@
+{% extends "admin/layout.html" %}
+{% block title %}Grading Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+
+    <h4 class="mb-3">Grading Management</h4>
+
+    <!-- ================= FILTER BAR ================= -->
+    <form method="GET" class="row g-2 mb-3">
+
+        <div class="col-md-3">
+                 <input type="text" value="{{ current_academic_year or 'Not configured' }}"
+                     class="form-control form-control-sm" readonly>
+                 <input type="hidden" name="academic_year" value="{{ current_academic_year or '' }}">
+        </div>
+
+        <div class="col-md-2">
+            <select name="semester" class="form-select form-select-sm">
+                <option value="">All Semesters</option>
+                <option value="1" {% if semester_filter == '1' %}selected{% endif %}>Semester 1</option>
+                <option value="2" {% if semester_filter == '2' %}selected{% endif %}>Semester 2</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <select name="status" class="form-select form-select-sm">
+                <option value="">All Status</option>
+                <option value="In Progress" {% if status_filter == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Finalized" {% if status_filter == 'Finalized' %}selected{% endif %}>Finalized</option>
+                <option value="Released" {% if status_filter == 'Released' %}selected{% endif %}>Released</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <button class="btn btn-primary btn-sm w-100">
+                <i class="fas fa-filter"></i> Apply
+            </button>
+        </div>
+
+        <div class="col-md-2">
+            <a href="{{ url_for('grading.manage_grading') }}"
+               class="btn btn-secondary btn-sm w-100">Reset</a>
+        </div>
+
+    </form>
+
+    <!-- ================= TABLE ================= -->
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Year</th>
+                    <th>Sem</th>
+                    <th class="text-center">Grades</th>
+                    <th class="text-center">Finalized</th>
+                    <th class="text-center">Released</th>
+                    <th>Status</th>
+                    <th width="160">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            {% if semester_statuses %}
+                {% for status in semester_statuses %}
+                <tr>
+                    <td><strong>{{ status.academic_year|start_year }}</strong></td>
+                    <td>{{ status.semester }}</td>
+                    <td class="text-center"><span class="badge bg-info">{{ status.total_grades }}</span></td>
+                    <td class="text-center"><span class="badge bg-warning">{{ status.finalized_count }}</span></td>
+                    <td class="text-center"><span class="badge bg-success">{{ status.released_count }}</span></td>
+                    <td>
+                        {% if status.status == 'Released' %}
+                            <span class="badge bg-success">Released</span>
+                        {% elif status.status == 'Finalized' %}
+                            <span class="badge bg-warning">Finalized</span>
+                        {% else %}
+                            <span class="badge bg-secondary">In Progress</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm w-100">
+
+                            <!-- DETAILS -->
+                            <a href="{{ url_for('grading.semester_details',
+                                academic_year=status.academic_year,
+                                semester=status.semester) }}"
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+
+                            <!-- FINALIZE -->
+                            {% if status.status != 'Released' %}
+                            <a href="{{ url_for('grading.finalize_semester',
+                                academic_year=status.academic_year,
+                                semester=status.semester) }}"
+                               class="btn btn-outline-success">
+                                <i class="fas fa-check"></i>
+                            </a>
+                            {% endif %}
+
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-3">
+                        No semesters match the filter.
+                    </td>
+                </tr>
+            {% endif %}
+
+            </tbody>
+        </table>
+    </div>
+
+</div>
+{% endblock %}

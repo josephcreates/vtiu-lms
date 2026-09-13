@@ -1,0 +1,292 @@
+{% extends "admin/layout.html" %}
+{% block title %}Assessment Period Results{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold text-primary">
+        <i class="bi bi-graph-up"></i> Assessment Results
+      </h4>
+      <p class="text-muted mb-0">
+        {{ period.academic_year|start_year }} - {{ period.semester }} Semester
+      </p>
+    </div>
+    <a href="{{ url_for('admin.assessment_periods') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Back to Periods
+    </a>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card border-primary">
+        <div class="card-body text-center">
+          <h3 class="text-primary mb-1">{{ total_assessments }}</h3>
+          <p class="mb-0">Total Assessments</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-success">
+        <div class="card-body text-center">
+          <h3 class="text-success mb-1">{{ unique_students }}</h3>
+          <p class="mb-0">Students Participated</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-info">
+        <div class="card-body text-center">
+          <h3 class="text-info mb-1">{{ unique_teachers }}</h3>
+          <p class="mb-0">Teachers Assessed</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-warning">
+        <div class="card-body text-center">
+          <h3 class="text-warning mb-1">{{ "%.1f"|format(avg_rating) }}</h3>
+          <p class="mb-0">Average Rating</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h6 class="mb-0">
+            <i class="bi bi-bar-chart"></i> Teacher Performance Distribution
+          </h6>
+        </div>
+        <div class="card-body">
+          <canvas id="teacherPerformanceChart" width="400" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h6 class="mb-0">
+            <i class="bi bi-pie-chart"></i> Assessment Completion Rate
+          </h6>
+        </div>
+        <div class="card-body">
+          <canvas id="completionChart" width="400" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teacher Rankings Table -->
+  <div class="card">
+    <div class="card-header">
+      <h6 class="mb-0">
+        <i class="bi bi-trophy"></i> Teacher Performance Rankings
+      </h6>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>Rank</th>
+              <th>Teacher Name</th>
+              <th>Assessments</th>
+              <th>Courses</th>
+              <th>Average Rating</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for teacher_id, stats in teacher_stats.items() %}
+            <tr>
+              <td>
+                {% if stats.avg_rating >= 4.5 %}
+                  <span class="badge bg-success">🥇 Excellent</span>
+                {% elif stats.avg_rating >= 3.5 %}
+                  <span class="badge bg-info">🥈 Good</span>
+                {% elif stats.avg_rating >= 2.5 %}
+                  <span class="badge bg-warning">🥉 Average</span>
+                {% else %}
+                  <span class="badge bg-danger">🏅 Needs Improvement</span>
+                {% endif %}
+              </td>
+              <td class="fw-semibold">{{ stats.name }}</td>
+              <td>{{ stats.assessments }}</td>
+              <td>
+                {% for course in stats.courses %}
+                  <span class="badge bg-light text-dark me-1">{{ course }}</span>
+                {% endfor %}
+              </td>
+              <td>
+                <div class="d-flex align-items-center">
+                  <div class="progress me-2" style="width: 100px; height: 8px;">
+                    {% set progress_width = (stats.avg_rating / 5) * 100 %}
+                    <div class="progress-bar 
+                      {% if stats.avg_rating >= 4 %}bg-success
+                      {% elif stats.avg_rating >= 3 %}bg-info
+                      {% elif stats.avg_rating >= 2 %}bg-warning
+                      {% else %}bg-danger
+                      {% endif %}" 
+                      style="width: {{ progress_width }}%"></div>
+                  </div>
+                  <small>{{ "%.1f"|format(stats.avg_rating) }}/5.0</small>
+                </div>
+              </td>
+              <td>
+                {% if stats.avg_rating >= 3.0 %}
+                  <span class="badge bg-success">Performing</span>
+                {% else %}
+                  <span class="badge bg-danger">Under Review</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                No assessment data available for this period.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Course Breakdown -->
+  <div class="card">
+    <div class="card-header">
+      <h6 class="mb-0">
+        <i class="bi bi-book"></i> Course Assessment Breakdown
+      </h6>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        {% for course, stats in course_stats.items() %}
+        <div class="col-md-4 mb-3">
+          <div class="card border-light">
+            <div class="card-body text-center">
+              <h6 class="text-primary">{{ course }}</h6>
+              <p class="mb-2">
+                <span class="badge bg-info">{{ stats.count }}</span> Assessments
+              </p>
+              {% set course_progress = (stats.count / total_assessments) * 100 %}
+              <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-primary" style="width: {{ course_progress }}%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Template Data Preparation -->
+{% set teacher_names = [] %}
+{% set teacher_ratings = [] %}
+{% for teacher_id, stats in teacher_stats.items() %}
+  {% if teacher_names.append(stats.name) %}{% endif %}
+  {% if teacher_ratings.append(stats.avg_rating) %}{% endif %}
+{% endfor %}
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Data prepared by template
+var teacherNames = {{ teacher_names|tojson }};
+var teacherRatings = {{ teacher_ratings|tojson }};
+
+// Generate colors based on ratings
+var teacherColors = teacherRatings.map(function(rating) {
+  if (rating >= 4.5) return 'rgba(40, 167, 69, 0.8)';
+  if (rating >= 3.5) return 'rgba(13, 202, 240, 0.8)';
+  if (rating >= 2.5) return 'rgba(255, 193, 7, 0.8)';
+  return 'rgba(220, 53, 69, 0.8)';
+});
+
+var teacherBorders = teacherRatings.map(function(rating) {
+  if (rating >= 4.5) return 'rgba(40, 167, 69, 1)';
+  if (rating >= 3.5) return 'rgba(13, 202, 240, 1)';
+  if (rating >= 2.5) return 'rgba(255, 193, 7, 1)';
+  return 'rgba(220, 53, 69, 1)';
+});
+
+// Teacher Performance Chart
+var teacherCtx = document.getElementById('teacherPerformanceChart').getContext('2d');
+var teacherData = {
+  labels: teacherNames,
+  datasets: [{
+    label: 'Average Rating',
+    data: teacherRatings,
+    backgroundColor: teacherColors,
+    borderColor: teacherBorders,
+    borderWidth: 1
+  }]
+};
+
+new Chart(teacherCtx, {
+  type: 'bar',
+  data: teacherData,
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 5,
+        title: {
+          display: true,
+          text: 'Rating (1-5 Scale)'
+        }
+      }
+    }
+  }
+});
+
+// Completion Chart
+var completionCtx = document.getElementById('completionChart').getContext('2d');
+var completionData = {
+  labels: ['Completed Assessments', 'Students Participated', 'Teachers Assessed'],
+  datasets: [{
+    label: 'Count',
+    data: [{{ total_assessments }}, {{ unique_students }}, {{ unique_teachers }}],
+    backgroundColor: [
+      'rgba(13, 202, 240, 0.8)',
+      'rgba(40, 167, 69, 0.8)',
+      'rgba(255, 193, 7, 0.8)'
+    ],
+    borderColor: [
+      'rgba(13, 202, 240, 1)',
+      'rgba(40, 167, 69, 1)',
+      'rgba(255, 193, 7, 1)'
+    ],
+    borderWidth: 1
+  }]
+};
+
+new Chart(completionCtx, {
+  type: 'doughnut',
+  data: completionData,
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'bottom'
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

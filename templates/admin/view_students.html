@@ -1,0 +1,85 @@
+{% extends "admin/layout.html" %}
+{% block title %}View Students{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold mb-1">
+        <i class="fas fa-users text-primary me-2"></i>
+        Students
+      </h4>
+      <p class="text-muted mb-0">Manage and view all registered students</p>
+    </div>
+    <div>
+      <a href="{{ url_for('admin.register_continuing_student') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>
+        Register Student
+      </a>
+    </div>
+  </div>
+
+  {% if students %}
+  <div class="card">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Student ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Programme</th>
+              <th>Level</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for student in students %}
+            <tr>
+              <td>{{ student.user_id }}</td>
+              <td>
+                <div class="d-flex align-items-center">
+                  <img src="{{ url_for('static', filename='uploads/profile_pictures/' + student.profile_picture) }}" 
+                       class="rounded-circle me-2" width="32" height="32" 
+                       data-fallback="{{ url_for('static', filename='uploads/profile_pictures/default_avatar.png') }}"
+                       onerror="this.src=this.dataset.fallback;">
+                  {{ student.first_name }} {{ student.last_name }}
+                </div>
+              </td>
+              <td>{{ student.email or 'N/A' }}</td>
+              <td>{{ student.student_profile.current_programme if student.student_profile else 'N/A' }}</td>
+              <td>{{ student.student_profile.programme_level if student.student_profile else 'N/A' }}</td>
+              <td>
+                <span class="badge bg-{{ 'success' if student.student_profile and student.student_profile.academic_status == 'Active' else 'secondary' }}">
+                  {{ student.student_profile.academic_status if student.student_profile else 'Unknown' }}
+                </span>
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <a href="{{ url_for('admin.view_students') }}" class="btn btn-outline-primary" title="View">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <i class="fas fa-users text-muted" style="font-size: 3rem;"></i>
+    <h5 class="text-muted mt-3">No Students Found</h5>
+    <p class="text-muted">No students have been registered yet.</p>
+    <a href="{{ url_for('admin.register_continuing_student') }}" class="btn btn-primary">
+      <i class="fas fa-plus me-1"></i>
+      Register First Student
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

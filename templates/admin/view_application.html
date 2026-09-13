@@ -1,0 +1,149 @@
+{% extends "admin/layout.html" %}
+{% block title %}Application Verification{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-1">
+
+<!-- HEADER -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+        <h5 class="fw-bold mb-0">Application Verification</h5>
+        <small class="text-muted fs-8">
+            Status:
+            <span class="badge bg-info text-dark">
+                {{ application.status|capitalize }}
+            </span>
+        </small>
+    </div>
+
+    <a href="{{ url_for('admin.manage_admissions') }}"
+       class="btn btn-outline-secondary btn-sm">
+        ← Back
+    </a>
+</div>
+
+<!-- PERSONAL INFO -->
+<div class="card shadow-sm border-0 mb-2">
+    <div class="card-header fw-semibold fs-8" style="padding: 0.5rem 1rem;">Personal Information</div>
+    <div class="card-body row g-2 p-2">
+        <div class="col-md-4 d-flex align-items-center gap-2">
+    <strong class="fs-8">Name:</strong>
+    <img src="{{ application.profile_picture_url }}"
+         alt="Applicant Photo"
+         class="rounded-circle"
+         width="35"
+         height="35">
+    <span class="fs-8">{{ application.surname }} {{ application.first_name }} {{ application.other_names }}</span>
+</div>
+        <div class="col-md-4"><strong class="fs-8">Gender:</strong> <span class="fs-8">{{ application.gender }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">DOB:</strong> <span class="fs-8">{{ application.dob }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Nationality:</strong> <span class="fs-8">{{ application.nationality }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Marital Status:</strong> <span class="fs-8">{{ application.marital_status }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Region:</strong> <span class="fs-8">{{ application.home_region }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Email:</strong> <span class="fs-8">{{ application.email }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Phone:</strong> <span class="fs-8">{{ application.phone }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Postal Address:</strong> <span class="fs-8">{{ application.postal_address }}</span></div>
+    </div>
+</div>
+
+<!-- GUARDIAN INFO -->
+<div class="card shadow-sm border-0 mb-2">
+    <div class="card-header fw-semibold fs-8" style="padding: 0.5rem 1rem;">Guardian / Sponsor Information</div>
+    <div class="card-body row g-2 p-2">
+        <div class="col-md-4"><strong class="fs-8">Name:</strong> <span class="fs-8">{{ application.guardian_name }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Relation:</strong> <span class="fs-8">{{ application.guardian_relation }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Occupation:</strong> <span class="fs-8">{{ application.guardian_occupation }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Phone:</strong> <span class="fs-8">{{ application.guardian_phone }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Email:</strong> <span class="fs-8">{{ application.guardian_email }}</span></div>
+        <div class="col-md-4"><strong class="fs-8">Address:</strong> <span class="fs-8">{{ application.guardian_address }}</span></div>
+    </div>
+</div>
+
+<!-- PROGRAMME CHOICES -->
+<div class="card shadow-sm border-0 mb-2">
+    <div class="card-header fw-semibold fs-8" style="padding: 0.5rem 1rem;">Programme Choices</div>
+    <div class="card-body row g-2 p-2">
+        <div class="col-md-3"><strong class="fs-8">1st:</strong> <span class="fs-8">{{ application.first_choice }}</span></div>
+        <div class="col-md-3"><strong class="fs-8">2nd:</strong> <span class="fs-8">{{ application.second_choice }}</span></div>
+        <div class="col-md-3"><strong class="fs-8">3rd:</strong> <span class="fs-8">{{ application.third_choice }}</span></div>
+        <div class="col-md-3"><strong class="fs-8">4th:</strong> <span class="fs-8">{{ application.fourth_choice }}</span></div>
+    </div>
+</div>
+
+<!-- EXAM RESULTS -->
+<div class="card shadow-sm border-0 mb-2">
+    <div class="card-header fw-semibold fs-8" style="padding: 0.5rem 1rem;">Academic Results</div>
+    <div class="card-body table-responsive p-1">
+        <table class="table table-sm mb-0 fs-8">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Grade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr>
+                    <td>{{ r.subject }}</td>
+                    <td>{{ r.grade }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="2" class="text-muted text-center py-1">No results submitted</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- DOCUMENTS -->
+<div class="card shadow-sm border-0 mb-2">
+    <div class="card-header fw-semibold fs-8" style="padding: 0.5rem 1rem;">Uploaded Documents</div>
+    <div class="card-body p-2">
+        {% for doc in documents %}
+            <div class="d-flex justify-content-between border-bottom py-1">
+                <span class="fs-8">{{ doc.document_type|capitalize }}</span>
+                <a href="{{ url_for('static', filename=doc.file_path) }}"
+                   target="_blank"
+                   class="btn btn-sm btn-outline-primary">
+                    View
+                </a>
+            </div>
+        {% else %}
+            <div class="text-muted fs-8">No documents uploaded</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- FINAL ACTIONS -->
+<div class="d-flex gap-2">
+    {% if application.status != 'approved' %}
+    <form method="POST"
+          action="{{ url_for('admin.update_application_status',
+                             app_id=application.id,
+                             new_status='approved') }}">
+        <!-- Hidden CSRF token -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-success btn-sm">
+            ✔ Approve
+        </button>
+    </form>
+    {% endif %}
+
+    {% if application.status != 'rejected' %}
+    <form method="POST"
+          action="{{ url_for('admin.update_application_status',
+                             app_id=application.id,
+                             new_status='rejected') }}">
+        <!-- Hidden CSRF token -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-danger btn-sm">
+            ✖ Reject
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+</div>
+{% endblock %}

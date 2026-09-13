@@ -1,0 +1,154 @@
+{% extends "admin/layout.html" %}
+{% block title %}Manage Admissions | Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-1">
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h5 class="fw-bold mb-0">Admissions Management</h5>
+            <small class="text-muted fs-7">Review, approve or reject applications</small>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.manage_vouchers') }}" class="btn btn-sm btn-warning">
+                <i class="fas fa-ticket-alt"></i> Manage Admission Vouchers
+            </a>
+        </div>
+    </div>
+
+
+    <!-- Stats Cards -->
+    <div class="row g-2 mb-3">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-2">
+                    <small class="text-muted fs-8">Total Applications</small>
+                    <h5 class="fw-bold mb-0">{{ stats.total }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-2">
+                    <small class="text-muted fs-8">Submitted</small>
+                    <h5 class="fw-bold mb-0 text-primary">{{ stats.submitted }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-2">
+                    <small class="text-muted fs-8">Approved</small>
+                    <h5 class="fw-bold mb-0 text-success">{{ stats.approved }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-2">
+                    <small class="text-muted fs-8">Rejected</small>
+                    <h5 class="fw-bold mb-0 text-danger">{{ stats.rejected }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow-sm border-0 mb-2">
+        <div class="card-body d-flex gap-1 flex-wrap p-2">
+            {% for s in ['all','draft','submitted','approved','rejected'] %}
+                <a href="{{ url_for('admin.manage_admissions', status='' if s=='all' else s) }}"
+                   class="btn btn-xs {% if status == s or (s=='all' and not status) %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    {{ s|capitalize }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Applications Table -->
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th class="fw-6 fs-8">#</th>
+                        <th class="fw-6 fs-8">Applicant</th>
+                        <th class="fw-6 fs-8">Email</th>
+                        <th class="fw-6 fs-8">Status</th>
+                        <th class="fw-6 fs-8">Submitted</th>
+                        <th class="text-end fw-6 fs-8">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr>
+                        <td class="fs-8">{{ loop.index }}</td>
+
+                        <td class="fs-8">
+    <div class="fw-semibold">
+        {{ app.surname }} {{ app.first_name }} {{ app.other_names }}
+    </div>
+</td>
+
+<td class="text-muted fs-8">
+    {{ app.email or (app.applicant.email if app.applicant else '') }}
+</td>
+
+<td class="fs-8">
+    {% if app.status == 'approved' %}
+        <span class="badge bg-success">Approved</span>
+    {% elif app.status == 'rejected' %}
+        <span class="badge bg-danger">Rejected</span>
+    {% elif app.status == 'submitted' %}
+        <span class="badge bg-primary">Submitted</span>
+    {% else %}
+        <span class="badge bg-secondary">Draft</span>
+    {% endif %}
+</td>
+
+                        <td class="text-muted fs-8">
+                            {{ app.submitted_at.strftime('%d %b %Y') if app.submitted_at else '—' }}
+                        </td>
+
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('admin.view_application', app_id=app.id) }}"
+                                   class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+
+                                {% if app.status != 'approved' %}
+                                <form method="POST"
+                                      action="{{ url_for('admin.update_application_status', app_id=app.id, new_status='approved') }}">
+                                    <button class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                {% if app.status != 'rejected' %}
+                                <form method="POST"
+                                      action="{{ url_for('admin.update_application_status', app_id=app.id, new_status='rejected') }}">
+                                    <button class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-2 fs-8">
+                            No applications found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,640 @@
+{% extends 'admin/layout.html' %}
+{% block title %}Student Fee Balances{% endblock %}
+
+{% block head_extra %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+    .balance-critical {
+        color: #dc3545;
+        font-weight: 600;
+    }
+    .balance-partial {
+        color: #ffc107;
+        font-weight: 600;
+    }
+    .balance-clear {
+        color: #28a745;
+        font-weight: 600;
+    }
+    .balance-card {
+        border-left: 4px solid #dee2e6;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .balance-card:hover {
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+        transform: translateY(-1px);
+    }
+    .balance-card.critical {
+        border-left-color: #dc3545;
+        background-color: #fff5f5;
+    }
+    .balance-card.partial {
+        border-left-color: #ffc107;
+        background-color: #fffbf0;
+    }
+    .balance-card.clear {
+        border-left-color: #28a745;
+        background-color: #f0fdf4;
+    }
+    
+    .student-details {
+        font-size: 0.8rem;
+        line-height: 1.4;
+    }
+    .student-details strong {
+        color: #333;
+        display: inline-block;
+        min-width: 70px;
+    }
+    
+    .view-toggle-btn {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.85rem;
+    }
+    .view-toggle-btn.active {
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+
+    .balance-amount {
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    /* Compact container */
+    .container-fluid {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    /* Smaller summary cards */
+    .summary-card .card-body {
+        padding: 0.75rem;
+    }
+
+    .summary-card h6 {
+        font-size: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .summary-card h3 {
+        font-size: 1.3rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .summary-card small {
+        font-size: 0.7rem;
+    }
+
+    /* Smaller card content */
+    .balance-card .card-body {
+        padding: 0.75rem;
+    }
+
+    .balance-card .card-title {
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .balance-card hr {
+        margin: 0.5rem 0;
+    }
+
+    /* Smaller buttons */
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    /* Tighter spacing */
+    .row.g-3 {
+        gap: 0.75rem !important;
+    }
+
+    .row.g-3 > * {
+        padding-right: 0.375rem;
+        padding-left: 0.375rem;
+    }
+
+    /* Table adjustments */
+    .table {
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+
+    .table thead {
+        font-size: 0.8rem;
+    }
+
+    .table th, .table td {
+        padding: 0.5rem;
+    }
+
+    /* Search and filter smaller */
+    #searchBalances, #filterStatus {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.6rem;
+        height: 36px;
+    }
+
+    /* Modal adjustments */
+    .modal-header {
+        padding: 0.75rem;
+    }
+
+    .modal-body {
+        padding: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .modal-body h6 {
+        font-size: 0.8rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .modal-body p {
+        font-size: 0.9rem;
+    }
+
+    .progress {
+        height: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-2">
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <div>
+            <h5 class="mb-0" style="font-size: 1.1rem;"><i class="fas fa-wallet"></i> Outstanding Balances</h5>
+            <small class="text-muted">View and manage student fee balances</small>
+        </div>
+        <div class="d-flex gap-2 flex-wrap align-items-center" style="font-size: 0.85rem;">
+            <input type="search" id="searchBalances" class="form-control" placeholder="🔍 Search..." style="min-width: 180px;">
+            <select id="filterStatus" class="form-select" style="max-width: 120px;">
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+            </select>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary view-toggle-btn active" data-view="cards" title="Card View">
+                    <i class="fas fa-th"></i>
+                </button>
+                <button type="button" class="btn btn-outline-primary view-toggle-btn" data-view="table" title="Table View">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm" id="exportBtn">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card h-100 shadow-sm summary-card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">Total Outstanding</h6>
+                    <h3 class="text-danger mb-0" id="totalOutstanding" style="font-size: 1.2rem;">GHS 0.00</h3>
+                    <small class="text-muted">All students</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card h-100 shadow-sm summary-card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">Total Paid</h6>
+                    <h3 class="text-success mb-0" id="totalPaid" style="font-size: 1.2rem;">GHS 0.00</h3>
+                    <small class="text-muted">Collected</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card h-100 shadow-sm summary-card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">With Debt</h6>
+                    <h3 class="mb-0" id="debtorCount" style="font-size: 1.2rem;">0</h3>
+                    <small class="text-muted">Pending</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card h-100 shadow-sm summary-card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">Fully Paid</h6>
+                    <h3 class="text-success mb-0" id="paidCount" style="font-size: 1.2rem;">0</h3>
+                    <small class="text-muted">Clear</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CARD VIEW -->
+    <div id="cardView" class="mb-3">
+        {% if balances %}
+            <div class="row g-2" id="cardsContainer">
+                {% for balance in balances %}
+                    {% set status_class = 'critical' if balance.balance > 0 else ('partial' if balance.amount_paid > 0 else 'clear') %}
+                    <div class="col-lg-6 col-xl-4 col-xxl-3 balance-row" data-balance-id="{{ balance.id }}" data-status="{{ balance.status }}" data-search-text="{{ balance.student_name|lower }} {{ balance.programme|lower }}">
+                        <div class="card balance-card {{ status_class }} shadow-sm h-100">
+                            <div class="card-body">
+                                <!-- Student Header -->
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="flex-grow-1">
+                                        <h6 class="card-title mb-0" style="font-size: 0.9rem;">
+                                            <i class="fas fa-user-circle"></i> {{ balance.student_name }}
+                                        </h6>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">{{ balance.programme }}</small>
+                                    </div>
+                                    {% if balance.status == 'paid' %}
+                                        <span class="badge bg-success" style="font-size: 0.7rem;">
+                                            <i class="fas fa-check-circle"></i>
+                                        </span>
+                                    {% elif balance.status == 'partial' %}
+                                        <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">
+                                            <i class="fas fa-clock"></i>
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger" style="font-size: 0.7rem;">
+                                            <i class="fas fa-exclamation-circle"></i>
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <hr class="my-1" style="border-top: 1px solid rgba(0,0,0,0.08);">
+
+                                <!-- Details Section -->
+                                <div class="student-details mb-2">
+                                    <div class="mb-1">
+                                        <strong>Due:</strong>
+                                        <span class="text-dark fw-semibold" style="font-size: 0.8rem;">GHS {{ "%.2f"|format(balance.amount_due) }}</span>
+                                    </div>
+                                    <div class="mb-1">
+                                        <strong>Paid:</strong>
+                                        <span class="text-success fw-semibold" style="font-size: 0.8rem;">GHS {{ "%.2f"|format(balance.amount_paid) }}</span>
+                                    </div>
+                                    <div class="mb-1">
+                                        <strong>Outstanding:</strong>
+                                        <span class="{% if balance.balance > 0 %}balance-critical{% elif balance.amount_paid > 0 %}balance-partial{% else %}balance-clear{% endif %}" style="font-size: 0.8rem;">
+                                            GHS {{ "%.2f"|format(balance.balance) }}
+                                        </span>
+                                    </div>
+                                    {% if balance.balance > 0 %}
+                                        <div class="mt-1">
+                                            <div class="progress" style="height: 6px;">
+                                                <div class="progress-bar bg-success" style="width: {{ (balance.amount_paid / balance.amount_due * 100)|int }}%"></div>
+                                            </div>
+                                            <small class="text-muted d-block mt-0" style="font-size: 0.7rem;">{{ ((balance.amount_paid / balance.amount_due * 100)|int) }}% paid</small>
+                                        </div>
+                                    {% else %}
+                                        <div class="mt-1">
+                                            <span class="badge bg-success w-100 text-center" style="padding: 0.3rem; font-size: 0.7rem;">
+                                                <i class="fas fa-check"></i> Settled
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-outline-primary flex-grow-1 view-details-btn" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#balanceDetailModal"
+                                            data-balance='{{ balance|tojson|safe }}'
+                                            style="font-size: 0.75rem; padding: 0.3rem 0.4rem;">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success flex-grow-1 record-payment-btn" 
+                                            data-balance-id="{{ balance.id }}"
+                                            style="font-size: 0.75rem; padding: 0.3rem 0.4rem;">
+                                        <i class="fas fa-plus"></i> Pay
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="card text-center shadow-sm">
+                <div class="card-body p-3">
+                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0" style="font-size: 0.9rem;">No outstanding balances found.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- TABLE VIEW -->
+    <div id="tableView" style="display: none;">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light p-2">
+                <h6 class="mb-0" style="font-size: 0.9rem;">Student Balances - List View</h6>
+            </div>
+            <div class="card-body p-0">
+                {% if balances %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0" id="balancesTable" style="font-size: 0.85rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 5%; font-size: 0.75rem;">#</th>
+                                    <th style="width: 25%; font-size: 0.75rem;">Name</th>
+                                    <th style="width: 15%; font-size: 0.75rem;">Programme</th>
+                                    <th style="width: 12%; font-size: 0.75rem;" class="text-end">Due</th>
+                                    <th style="width: 12%; font-size: 0.75rem;" class="text-end">Paid</th>
+                                    <th style="width: 12%; font-size: 0.75rem;" class="text-end">Outstanding</th>
+                                    <th style="width: 10%; font-size: 0.75rem;">Status</th>
+                                    <th style="width: 9%; font-size: 0.75rem;" class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for balance in balances %}
+                                    {% set status_class = 'critical' if balance.balance > 0 else ('partial' if balance.amount_paid > 0 else 'clear') %}
+                                    <tr class="balance-row" data-balance-id="{{ balance.id }}" data-status="{{ balance.status }}" data-search-text="{{ balance.student_name|lower }} {{ balance.programme|lower }}">
+                                        <td class="text-muted">{{ loop.index }}</td>
+                                        <td>
+                                            <div class="fw-500" style="font-size: 0.85rem;">{{ balance.student_name }}</div>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ balance.programme }}</small>
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="fw-semibold" style="font-size: 0.85rem;">GHS {{ "%.2f"|format(balance.amount_due) }}</div>
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="text-success fw-semibold" style="font-size: 0.85rem;">GHS {{ "%.2f"|format(balance.amount_paid) }}</div>
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="{% if balance.balance > 0 %}balance-critical{% elif balance.amount_paid > 0 %}balance-partial{% else %}balance-clear{% endif %}" style="font-size: 0.85rem;">
+                                                GHS {{ "%.2f"|format(balance.balance) }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if balance.status == 'paid' %}
+                                                <span class="badge bg-success" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-check-circle"></i> Paid
+                                                </span>
+                                            {% elif balance.status == 'partial' %}
+                                                <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-clock"></i> Partial
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-danger" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-exclamation-circle"></i> Pending
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button class="btn btn-outline-primary view-details-btn" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#balanceDetailModal"
+                                                        data-balance='{{ balance|tojson|safe }}'
+                                                        title="View Details"
+                                                        style="font-size: 0.75rem; padding: 0.25rem 0.4rem;">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-success record-payment-btn" 
+                                                        data-balance-id="{{ balance.id }}"
+                                                        title="Record Payment"
+                                                        style="font-size: 0.75rem; padding: 0.25rem 0.4rem;">
+                                                    <i class="fas fa-plus"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center p-3">
+                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0" style="font-size: 0.9rem;">No outstanding balances found.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Balance Detail Modal -->
+<div class="modal fade" id="balanceDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="padding: 0.75rem;">
+                <h5 class="modal-title" style="font-size: 1rem;">Balance Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="font-size: 0.9rem; padding: 0.75rem;">
+                <div id="balanceDetail">
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Student Name</h6>
+                            <p class="mb-0" id="detailStudentName" style="font-size: 0.9rem;">-</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Programme</h6>
+                            <p class="mb-0" id="detailProgramme" style="font-size: 0.9rem;">-</p>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4">
+                            <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Amount Due</h6>
+                            <p class="mb-0 fw-semibold" id="detailAmountDue" style="font-size: 0.9rem;">GHS 0.00</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Amount Paid</h6>
+                            <p class="mb-0 fw-semibold text-success" id="detailAmountPaid" style="font-size: 0.9rem;">GHS 0.00</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Outstanding</h6>
+                            <p class="mb-0 fw-semibold text-danger" id="detailBalance" style="font-size: 0.9rem;">GHS 0.00</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="text-muted mb-2" style="font-size: 0.8rem;">Status</h6>
+                            <p id="detailStatus">
+                                <span class="badge">-</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 0.75rem;">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-sm btn-primary" id="recordPaymentFromModal">
+                    <i class="fas fa-plus"></i> Record Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // View Toggle
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const view = this.getAttribute('data-view');
+            
+            document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            if (view === 'cards') {
+                document.getElementById('cardView').style.display = '';
+                document.getElementById('tableView').style.display = 'none';
+            } else {
+                document.getElementById('cardView').style.display = 'none';
+                document.getElementById('tableView').style.display = '';
+            }
+        });
+    });
+
+    // View Details Button
+    document.querySelectorAll('.view-details-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            const balance = JSON.parse(this.getAttribute('data-balance'));
+            document.getElementById('detailStudentName').textContent = balance.student_name;
+            document.getElementById('detailProgramme').textContent = balance.programme;
+            document.getElementById('detailAmountDue').textContent = 'GHS ' + parseFloat(balance.amount_due).toFixed(2);
+            document.getElementById('detailAmountPaid').textContent = 'GHS ' + parseFloat(balance.amount_paid).toFixed(2);
+            document.getElementById('detailBalance').textContent = 'GHS ' + parseFloat(balance.balance).toFixed(2);
+            
+            let statusBadge = '<span class="badge bg-secondary">Unknown</span>';
+            if (balance.status === 'paid') {
+                statusBadge = '<span class="badge bg-success"><i class="fas fa-check-circle"></i> Fully Paid</span>';
+            } else if (balance.status === 'partial') {
+                statusBadge = '<span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> Partial Payment</span>';
+            } else {
+                statusBadge = '<span class="badge bg-danger"><i class="fas fa-exclamation-circle"></i> Pending Payment</span>';
+            }
+            document.getElementById('detailStatus').innerHTML = statusBadge;
+            document.getElementById('recordPaymentFromModal').setAttribute('data-balance-id', balance.id);
+        });
+    });
+
+    // Record Payment Button
+    document.querySelectorAll('.record-payment-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            alert('Record Payment functionality coming soon!');
+        });
+    });
+
+    // Calculate Summaries
+    function updateSummaries() {
+        const allRows = Array.from(document.querySelectorAll('.balance-row'));
+        let totalOutstanding = 0;
+        let totalPaid = 0;
+        let debtorCount = 0;
+        let paidCount = 0;
+
+        allRows.forEach(row => {
+            if (row.style.display === 'none') return;
+            
+            const status = row.getAttribute('data-status');
+            const rowText = row.innerText;
+            
+            const amountDueMatch = rowText.match(/Due:\s*GHS\s*([\d.,]+)|Amount Due.*?GHS\s*([\d.,]+)/i);
+            const amountPaidMatch = rowText.match(/Paid:\s*GHS\s*([\d.,]+)|Amount Paid.*?GHS\s*([\d.,]+)/i);
+            const balanceMatch = rowText.match(/Outstanding:\s*GHS\s*([\d.,]+)|Outstanding.*?GHS\s*([\d.,]+)/i);
+            
+            const amountDue = parseFloat((amountDueMatch ? (amountDueMatch[1] || amountDueMatch[2]) : '0').replace(/,/g, '')) || 0;
+            const amountPaid = parseFloat((amountPaidMatch ? (amountPaidMatch[1] || amountPaidMatch[2]) : '0').replace(/,/g, '')) || 0;
+            const balance = parseFloat((balanceMatch ? (balanceMatch[1] || balanceMatch[2]) : '0').replace(/,/g, '')) || 0;
+            
+            totalOutstanding += balance;
+            totalPaid += amountPaid;
+            
+            if (status === 'paid') {
+                paidCount++;
+            } else if (balance > 0) {
+                debtorCount++;
+            }
+        });
+
+        document.getElementById('totalOutstanding').textContent = 'GHS ' + totalOutstanding.toFixed(2);
+        document.getElementById('totalPaid').textContent = 'GHS ' + totalPaid.toFixed(2);
+        document.getElementById('debtorCount').textContent = debtorCount;
+        document.getElementById('paidCount').textContent = paidCount;
+    }
+
+    updateSummaries();
+
+    // Search functionality
+    document.getElementById('searchBalances').addEventListener('keyup', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        
+        document.querySelectorAll('.balance-row').forEach(row => {
+            const searchText = row.getAttribute('data-search-text') || '';
+            if (searchText.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        updateSummaries();
+    });
+
+    // Filter functionality
+    document.getElementById('filterStatus').addEventListener('change', function(e) {
+        const filterValue = e.target.value;
+        
+        document.querySelectorAll('.balance-row').forEach(row => {
+            const status = row.getAttribute('data-status');
+            const searchText = row.getAttribute('data-search-text') || '';
+            const searchInput = document.getElementById('searchBalances').value.toLowerCase();
+            
+            if ((filterValue === '' || status === filterValue) && searchText.includes(searchInput)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        updateSummaries();
+    });
+
+    // Export functionality
+    document.getElementById('exportBtn').addEventListener('click', function() {
+        let csv = 'Student Name,Programme,Amount Due,Amount Paid,Outstanding,Status\n';
+        
+        document.querySelectorAll('.balance-row:not([style*="display: none"])').forEach(row => {
+            const status = row.getAttribute('data-status');
+            const text = row.innerText;
+            
+            const dueMatch = text.match(/Due:.*?GHS\s*([\d.,]+)|Amount Due.*?GHS\s*([\d.,]+)/i);
+            const paidMatch = text.match(/Paid:.*?GHS\s*([\d.,]+)|Amount Paid.*?GHS\s*([\d.,]+)/i);
+            const balanceMatch = text.match(/Outstanding:.*?GHS\s*([\d.,]+)|Outstanding.*?GHS\s*([\d.,]+)/i);
+            
+            const amountDue = dueMatch ? (dueMatch[1] || dueMatch[2]) : '0';
+            const amountPaid = paidMatch ? (paidMatch[1] || paidMatch[2]) : '0';
+            const balance = balanceMatch ? (balanceMatch[1] || balanceMatch[2]) : '0';
+            
+            const searchText = row.getAttribute('data-search-text') || '';
+            const [studentNamePart, programmePart] = searchText.split('\n');
+            
+            csv += `"${studentNamePart || ''}","${programmePart || ''}","GHS ${amountDue}","GHS ${amountPaid}","GHS ${balance}","${status.toUpperCase()}"\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'student_balances_' + new Date().toISOString().split('T')[0] + '.csv');
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+});
+</script>
+{% endblock %}

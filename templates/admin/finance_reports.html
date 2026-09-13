@@ -1,0 +1,507 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}Finance Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2 class="mb-4"><i class="fas fa-chart-line"></i> Finance Reports</h2>
+    
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#daily-tab" role="tab">Daily Report</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#weekly-tab" role="tab">Weekly Report</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#monthly-tab" role="tab">Monthly Report</a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- DAILY REPORT -->
+        <div id="daily-tab" class="tab-pane fade show active" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">Today's Revenue</h6>
+                            <h2 id="todayRevenue">GHS 0.00</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">Transactions</h6>
+                            <h2 id="todayTransactions">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">Avg Transaction</h6>
+                            <h2 id="todayAverage">GHS 0.00</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">Pending</h6>
+                            <h2 id="pendingApprovals">0</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Daily Revenue Chart</h5>
+                </div>
+                <div class="card-body">
+                    <div style="position: relative; height: 300px;">
+                        <canvas id="dailyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- WEEKLY REPORT -->
+        <div id="weekly-tab" class="tab-pane fade" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">This Week</h6>
+                            <h2 id="weekRevenue">GHS 0.00</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">Transactions</h6>
+                            <h2 id="weekTransactions">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">Best Day</h6>
+                            <h2 id="weekBestDay">--</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">vs Last Week</h6>
+                            <h2 id="weekTrend">0%</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Weekly Revenue</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="position: relative; height: 300px;">
+                                <canvas id="weeklyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Week Comparison</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="position: relative; height: 300px;">
+                                <canvas id="weekComparisonChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MONTHLY REPORT -->
+        <div id="monthly-tab" class="tab-pane fade" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">This Month</h6>
+                            <h2 id="monthRevenue">GHS 0.00</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">Transactions</h6>
+                            <h2 id="monthTransactions">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">Collection Rate</h6>
+                            <h2 id="collectionRate">0%</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <h6 class="card-title text-white-50">Outstanding</h6>
+                            <h2 id="outstandingBalance">GHS 0.00</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Monthly Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="position: relative; height: 300px;">
+                                <canvas id="monthlyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">By Department</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="position: relative; height: 300px;">
+                                <canvas id="departmentChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Methods & Top Debtors -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-credit-card"></i> Payment Methods</h5>
+                </div>
+                <div class="card-body">
+                    <div style="position: relative; height: 300px;">
+                        <canvas id="paymentChart"></canvas>
+                    </div>
+                    {% if payment_methods %}
+                        <table class="table table-sm mt-3">
+                            <thead>
+                                <tr>
+                                    <th>Method</th>
+                                    <th class="text-end">Count</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for method in payment_methods %}
+                                    <tr>
+                                        <td>{{ method.method }}</td>
+                                        <td class="text-end">{{ method.count }}</td>
+                                        <td class="text-end">GHS {{ "%.2f"|format(method.total) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-circle"></i> Top Debtors</h5>
+                </div>
+                <div class="card-body">
+                    {% if top_debtors %}
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th class="text-end">Outstanding Debt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for debtor in top_debtors %}
+                                    <tr>
+                                        <td>{{ debtor.name }}</td>
+                                        <td class="text-end text-danger"><strong>GHS {{ "%.2f"|format(debtor.debt) }}</strong></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-muted text-center">No debtors found</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+let charts = {};
+
+document.querySelector('[href="#daily-tab"]').addEventListener('shown.bs.tab', loadDailyReport);
+document.querySelector('[href="#weekly-tab"]').addEventListener('shown.bs.tab', loadWeeklyReport);
+document.querySelector('[href="#monthly-tab"]').addEventListener('shown.bs.tab', loadMonthlyReport);
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded');
+    setTimeout(() => {
+        loadDailyReport();
+        loadPaymentChart();
+    }, 500);
+});
+
+function loadDailyReport() {
+    console.log('Loading daily report...');
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js not available');
+        return;
+    }
+    
+    const daily_data = {{ daily_revenue|tojson }};
+    console.log('Daily data:', daily_data);
+    
+    if (!daily_data || daily_data.length === 0) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const todayData = daily_data.find(d => d.date === today);
+    const total = daily_data.reduce((sum, d) => sum + (d.total || 0), 0);
+    const avg = total / daily_data.length;
+    
+    document.getElementById('todayRevenue').textContent = 'GHS ' + (todayData ? todayData.total.toFixed(2) : '0.00');
+    document.getElementById('todayAverage').textContent = 'GHS ' + avg.toFixed(2);
+    
+    fetch('/admin/finance/api/reports/daily')
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                document.getElementById('todayTransactions').textContent = d.today_transactions;
+                document.getElementById('pendingApprovals').textContent = d.pending_approvals;
+            }
+        })
+        .catch(e => console.error(e));
+    
+    const ctx = document.getElementById('dailyChart');
+    if (ctx) {
+        if (charts.daily) charts.daily.destroy();
+        charts.daily = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: daily_data.map(d => new Date(d.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})),
+                datasets: [{
+                    label: 'Revenue',
+                    data: daily_data.map(d => d.total),
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { callback: v => 'GHS ' + v.toFixed(0) } } }
+            }
+        });
+        console.log('Daily chart created');
+    }
+}
+
+function loadWeeklyReport() {
+    console.log('Loading weekly report...');
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js not available');
+        return;
+    }
+    
+    fetch('/admin/finance/api/reports/weekly')
+        .then(r => r.json())
+        .then(data => {
+            console.log('Weekly data:', data);
+            if (!data.success) return;
+            
+            const weekTotal = data.current_week.reduce((sum, d) => sum + d.total, 0);
+            document.getElementById('weekRevenue').textContent = 'GHS ' + weekTotal.toFixed(2);
+            document.getElementById('weekTransactions').textContent = data.current_week.reduce((sum, d) => sum + d.count, 0);
+            document.getElementById('weekBestDay').textContent = data.best_day;
+            document.getElementById('weekTrend').textContent = data.trend.toFixed(1) + '%';
+            
+            const ctx1 = document.getElementById('weeklyChart');
+            if (ctx1) {
+                if (charts.weekly) charts.weekly.destroy();
+                charts.weekly = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: data.current_week.map(d => d.day),
+                        datasets: [{ label: 'Revenue', data: data.current_week.map(d => d.total), backgroundColor: 'rgba(13, 110, 253, 0.8)', borderRadius: 5 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { callback: v => 'GHS ' + v.toFixed(0) } } }
+                    }
+                });
+            }
+            
+            const ctx2 = document.getElementById('weekComparisonChart');
+            if (ctx2) {
+                if (charts.weekComparison) charts.weekComparison.destroy();
+                charts.weekComparison = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: data.current_week.map(d => d.day),
+                        datasets: [
+                            { label: 'This Week', data: data.current_week.map(d => d.total), backgroundColor: 'rgba(13, 110, 253, 0.8)', borderRadius: 5 },
+                            { label: 'Last Week', data: data.last_week.map(d => d.total), backgroundColor: 'rgba(108, 117, 125, 0.5)', borderRadius: 5 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, ticks: { callback: v => 'GHS ' + v.toFixed(0) } } }
+                    }
+                });
+            }
+            console.log('Weekly charts created');
+        })
+        .catch(e => console.error('Weekly error:', e));
+}
+
+function loadMonthlyReport() {
+    console.log('Loading monthly report...');
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js not available');
+        return;
+    }
+    
+    fetch('/admin/finance/api/reports/monthly')
+        .then(r => r.json())
+        .then(data => {
+            console.log('Monthly data:', data);
+            if (!data.success) return;
+            
+            document.getElementById('monthRevenue').textContent = 'GHS ' + data.current_month_total.toFixed(2);
+            document.getElementById('collectionRate').textContent = data.collection_rate.toFixed(1) + '%';
+            document.getElementById('outstandingBalance').textContent = 'GHS ' + data.outstanding_balance.toFixed(2);
+            document.getElementById('monthTransactions').textContent = data.monthly_data.reduce((sum, m) => sum + (m.count || 0), 0);
+            
+            const ctx1 = document.getElementById('monthlyChart');
+            if (ctx1) {
+                if (charts.monthly) charts.monthly.destroy();
+                charts.monthly = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: data.monthly_data.map(m => m.month),
+                        datasets: [{
+                            label: 'Revenue',
+                            data: data.monthly_data.map(m => m.total),
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { callback: v => 'GHS ' + v.toFixed(0) } } }
+                    }
+                });
+            }
+            
+            const ctx2 = document.getElementById('departmentChart');
+            if (ctx2 && data.department_breakdown && data.department_breakdown.length > 0) {
+                if (charts.department) charts.department.destroy();
+                charts.department = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.department_breakdown.map(d => d.name),
+                        datasets: [{
+                            data: data.department_breakdown.map(d => d.total),
+                            backgroundColor: ['#0d6efd', '#6f42c1', '#198754', '#fd7e14', '#dc3545', '#20c997', '#17a2b8', '#6c757d']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+            console.log('Monthly charts created');
+        })
+        .catch(e => console.error('Monthly error:', e));
+}
+
+function loadPaymentChart() {
+    console.log('Loading payment chart...');
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js not available');
+        return;
+    }
+    
+    {% if payment_methods %}
+        const paymentData = {{ payment_methods|tojson }};
+        if (paymentData && paymentData.length > 0) {
+            const ctx = document.getElementById('paymentChart');
+            if (ctx) {
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: paymentData.map(p => p.method),
+                        datasets: [{
+                            data: paymentData.map(p => p.count),
+                            backgroundColor: ['#0d6efd', '#6f42c1', '#198754', '#dc3545', '#fd7e14', '#20c997', '#17a2b8', '#6c757d']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+                console.log('Payment chart created');
+            }
+        }
+    {% endif %}
+}
+</script>
+{% endblock %}

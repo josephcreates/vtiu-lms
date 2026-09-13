@@ -1,0 +1,294 @@
+{% extends "admin/layout.html" %}
+{% block title %}Result Vetting{% endblock %}
+
+{% block content %}
+<!-- Hidden CSRF Token -->
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<style>
+  .vetting-container { padding: 1rem 0; }
+  .vetting-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+    overflow: hidden;
+  }
+  .vetting-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .vetting-card.released {
+    opacity: 0.7;
+    background: linear-gradient(135deg, #e7f3ff 0%, #f0f8ff 100%);
+  }
+  .vetting-card-header {
+    background: linear-gradient(135deg, #0d6efd 0%, #0d5ae8 100%);
+    color: white;
+    padding: 1rem;
+  }
+  .vetting-card-body { padding: 1rem; }
+  .status-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .status-pending { background: #fff3cd; color: #664d03; }
+  .status-released { background: #d1e7dd; color: #0f5132; }
+  .stat-box {
+    text-align: center;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    border-left: 3px solid #0d6efd;
+  }
+  .stat-value { font-size: 1.5rem; font-weight: bold; color: #0d6efd; }
+  .stat-label { font-size: 0.75rem; color: #666; text-transform: uppercase; }
+  .action-buttons { display: flex; gap: 0.5rem; }
+  .action-buttons .btn { flex: 1; }
+  @media (max-width: 768px) {
+    .vetting-card { margin-bottom: 1rem; }
+    .action-buttons { flex-direction: column; }
+  }
+</style>
+
+<div class="container-fluid vetting-container">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="mb-1">
+        <i class="fas fa-clipboard-check me-2 text-primary"></i> Result Vetting
+      </h4>
+      <p class="text-muted mb-0">Review and approve/reject submitted semester results</p>
+    </div>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+    </a>
+  </div>
+
+  {% if submissions|length == 0 %}
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+      <i class="fas fa-info-circle me-2"></i>
+      <strong>No pending submissions.</strong> All submitted semesters have been reviewed.
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% else %}
+    <div class="row g-3">
+      {% for s in submissions %}
+      <div class="col-md-6 col-lg-4">
+        <div class="vetting-card {% if s.is_released %}released{% endif %}">
+          <!-- Header -->
+          <div class="vetting-card-header">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h6 class="mb-1">
+                  <i class="fas fa-calendar-alt me-1"></i>
+                  {{ s.academic_year|start_year }}
+                </h6>
+                <p class="mb-0">{{ s.semester }} Semester</p>
+              </div>
+              {% if s.is_released %}
+                <span class="status-badge status-released">✓ Released</span>
+              {% else %}
+                <span class="status-badge status-pending">⏳ Pending</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Body -->
+          <div class="vetting-card-body">
+            <!-- Metadata -->
+            <div class="mb-3 pb-3 border-bottom">
+              <small class="text-muted d-block">
+                <i class="fas fa-clock me-1"></i>
+                Submitted: {{ s.locked_at.strftime("%b %d, %Y %H:%M") if s.locked_at else s.created_at.strftime("%b %d, %Y %H:%M") }}
+              </small>
+              {% if s.is_released and s.released_at %}
+              <small class="text-muted d-block">
+                <i class="fas fa-check me-1"></i>
+                Released: {{ s.released_at.strftime("%b %d, %Y %H:%M") }}
+              </small>
+              {% endif %}
+            </div>
+
+            <!-- Stats Grid -->
+            {% set has_courses = s.submitted_courses and s.submitted_courses|length > 0 %}
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <div class="stat-box">
+                  <div class="stat-value">{% if has_courses %}1+{% else %}0{% endif %}</div>
+                  <div class="stat-label">Courses</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="stat-box">
+                  <div class="stat-value">
+                    {% if s.is_released %}
+                      ✓
+                    {% else %}
+                      ⏳
+                    {% endif %}
+                  </div>
+                  <div class="stat-label">Status</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            {% if not s.is_released %}
+            <div class="action-buttons">
+              <a href="{{ url_for('admin.result_vetting_detail', release_id=s.id) }}" 
+                 class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-eye me-1"></i> Details
+              </a>
+              <button class="btn btn-sm btn-success" 
+                      onclick="approveVetting(event, '{{ s.academic_year }}', '{{ s.semester }}', '{{ s.id }}')">
+                <i class="fas fa-check me-1"></i> Approve
+              </button>
+              <button class="btn btn-sm btn-outline-danger" 
+                      onclick="rejectVetting(event, '{{ s.academic_year }}', '{{ s.semester }}', '{{ s.id }}')">
+                <i class="fas fa-times me-1"></i> Reject
+              </button>
+            </div>
+            {% else %}
+            <a href="{{ url_for('admin.result_vetting_detail', release_id=s.id) }}" 
+               class="btn btn-sm btn-outline-primary w-100">
+              <i class="fas fa-eye me-1"></i> View Released Results
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+<script>
+async function approveVetting(event, academicYear, semester, releaseId) {
+  event.preventDefault();
+  const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+  
+  if (!confirm(`Approve and release results for ${academicYear} ${semester}?`)) return;
+  
+  const btn = event.target.closest('button');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Processing...';
+  
+  try {
+    const response = await fetch('{{ url_for("admin.api_approve_results") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({academic_year: academicYear, semester: semester})
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Animate card removal
+      const card = btn.closest('.col-md-6, .col-lg-4');
+      card.style.opacity = '0';
+      card.style.transform = 'scale(0.95)';
+      
+      setTimeout(() => {
+        card.remove();
+        
+        // Show success message
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success alert-dismissible fade show';
+        alert.innerHTML = `
+          <i class="fas fa-check-circle me-2"></i>
+          <strong>${academicYear} ${semester} results released successfully!</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('.vetting-container').insertBefore(alert, 
+          document.querySelector('.vetting-container').firstChild);
+        
+        // Check if all pending are gone
+        if (document.querySelectorAll('.vetting-card:not(.released)').length === 0) {
+          setTimeout(() => location.reload(), 2000);
+        }
+      }, 300);
+    } else {
+      alert('Failed: ' + (data.message || 'Unknown error'));
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check me-1"></i> Approve';
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-1"></i> Approve';
+  }
+}
+
+async function rejectVetting(event, academicYear, semester, releaseId) {
+  event.preventDefault();
+  const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+  
+  const reason = prompt(
+    `Enter reason for rejecting ${academicYear} ${semester}:\n(Optional - press Cancel to use default)`,
+    'Grade corrections needed'
+  );
+  
+  if (reason === null) return;
+  
+  const btn = event.target.closest('button');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Processing...';
+  
+  try {
+    const response = await fetch('{{ url_for("admin.api_reject_results") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({academic_year: academicYear, semester: semester, reason: reason})
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Animate card removal
+      const card = btn.closest('.col-md-6, .col-lg-4');
+      card.style.opacity = '0';
+      card.style.transform = 'scale(0.95)';
+      
+      setTimeout(() => {
+        card.remove();
+        
+        // Show info message
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-info alert-dismissible fade show';
+        alert.innerHTML = `
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>${academicYear} ${semester} unlocked for revisions.</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('.vetting-container').insertBefore(alert, 
+          document.querySelector('.vetting-container').firstChild);
+        
+        // Check if all pending are gone
+        if (document.querySelectorAll('.vetting-card:not(.released)').length === 0) {
+          setTimeout(() => location.reload(), 2000);
+        }
+      }, 300);
+    } else {
+      alert('Failed: ' + (data.message || 'Unknown error'));
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-times me-1"></i> Reject';
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-times me-1"></i> Reject';
+  }
+}
+</script>
+{% endblock %}

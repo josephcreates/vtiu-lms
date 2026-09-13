@@ -1,0 +1,186 @@
+{% extends "admin/layout.html" %}
+{% block title %}Manage Admin Accounts{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h2 class="mb-0">
+        <i class="fas fa-users-cog me-2 text-primary"></i> Manage Admin Accounts
+      </h2>
+      <small class="text-muted">View, edit, and manage all admin accounts</small>
+    </div>
+    <div class="text-end">
+      <a href="{{ url_for('admin.create_admin') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> Create New Admin
+      </a>
+    </div>
+  </div>
+
+  {% if not admins %}
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle me-2"></i>
+      <strong>No admins created yet.</strong>
+      <a href="{{ url_for('admin.create_admin') }}">Create the first admin account</a>
+    </div>
+  {% else %}
+    <!-- Admin Cards -->
+    <div class="row g-3">
+      {% for admin in admins %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm h-100">
+          <!-- Header -->
+          <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h6 class="mb-1">{{ admin.admin_id }}</h6>
+                <small>{{ admin.role|replace('_', ' ')|title }}</small>
+              </div>
+              <div class="text-end">
+                {% if admin.role == 'finance_admin' %}
+                  <span class="badge bg-light text-dark">💰 Finance</span>
+                {% elif admin.role == 'admissions_admin' %}
+                  <span class="badge bg-light text-dark">👥 Admissions</span>
+                {% elif admin.role == 'academic_admin' %}
+                  <span class="badge bg-light text-dark">📚 Academic</span>
+                {% else %}
+                  <span class="badge bg-light text-dark">Admin</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Body -->
+          <div class="card-body">
+            <!-- Name -->
+            <div class="mb-3">
+              <h6 class="card-title mb-1">
+                {% if admin.user and admin.user.profile_picture %}
+                  <img src="{{ url_for('static', filename='uploads/profile_pictures/' + admin.user.profile_picture) }}" alt="{{ admin.user.full_name }}" class="rounded-circle me-2" style="width: 30px; height: 30px;">
+                {% endif %}
+                {{ admin.user.full_name if admin.user else admin.username }}
+              </h6>
+            </div>
+
+            <!-- Details -->
+            <table class="table table-sm table-borderless">
+              <tr>
+                <td class="text-muted small">Email:</td>
+                <td class="small"><code>{{ admin.email }}</code></td>
+              </tr>
+              <tr>
+                <td class="text-muted small">Job Title:</td>
+                <td class="small">{{ admin.job_title or '—' }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">Department:</td>
+                <td class="small">{{ admin.department or '—' }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">Location:</td>
+                <td class="small">{{ admin.office_location or '—' }}</td>
+              </tr>
+            </table>
+
+            <!-- Permissions Summary -->
+            <div class="bg-light p-2 rounded mb-3" style="font-size: 0.85rem;">
+              <strong class="d-block mb-1">Permissions:</strong>
+              <div class="d-flex flex-wrap gap-1">
+                {% if admin.can_view_finances %}
+                  <span class="badge bg-success">View Finance</span>
+                {% endif %}
+                {% if admin.can_edit_finances %}
+                  <span class="badge bg-success">Edit Finance</span>
+                {% endif %}
+                {% if admin.can_approve_payments %}
+                  <span class="badge bg-info">Approve Payments</span>
+                {% endif %}
+                {% if admin.can_view_admissions %}
+                  <span class="badge bg-warning text-dark">View Admissions</span>
+                {% endif %}
+                {% if admin.can_edit_admissions %}
+                  <span class="badge bg-warning text-dark">Edit Admissions</span>
+                {% endif %}
+                {% if admin.can_view_academics %}
+                  <span class="badge bg-primary">View Academics</span>
+                {% endif %}
+                {% if admin.can_edit_academics %}
+                  <span class="badge bg-primary">Edit Academics</span>
+                {% endif %}
+                {% if not (admin.can_view_finances or admin.can_view_admissions or admin.can_view_academics) %}
+                  <span class="badge bg-secondary">View Only</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Created Date -->
+            <small class="text-muted d-block mb-3">
+              <i class="fas fa-calendar me-1"></i>
+              Created: {{ admin.created_at.strftime('%b %d, %Y') if admin.created_at else '—' }}
+            </small>
+          </div>
+
+          <!-- Footer with Actions -->
+          <div class="card-footer bg-light">
+            <div class="d-flex gap-2">
+              <a href="{{ url_for('admin.edit_admin', admin_id=admin.admin_id) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                <i class="fas fa-edit me-1"></i> Edit
+              </a>
+              
+              {% if admin.user_id != current_user.user_id %}
+              <form method="POST" action="{{ url_for('admin.delete_admin', admin_id=admin.admin_id) }}" style="display: inline;" onsubmit="return confirm('Delete this admin? This cannot be undone.');">
+                <button type="submit" class="btn btn-sm btn-outline-danger flex-grow-1">
+                  <i class="fas fa-trash me-1"></i> Delete
+                </button>
+              </form>
+              {% else %}
+              <span class="btn btn-sm btn-outline-secondary flex-grow-1 disabled">
+                <i class="fas fa-lock me-1"></i> (Your Account)
+              </span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Statistics -->
+    <div class="row g-3 mt-4">
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <h3 class="card-title text-primary">{{ admins|length }}</h3>
+            <p class="card-text text-muted mb-0">Total Admins</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <h3 class="card-title text-success">{{ admins|selectattr('role', 'equalto', 'finance_admin')|list|length }}</h3>
+            <p class="card-text text-muted mb-0">Finance Admins</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <h3 class="card-title text-warning">{{ admins|selectattr('role', 'equalto', 'admissions_admin')|list|length }}</h3>
+            <p class="card-text text-muted mb-0">Admissions Admins</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <h3 class="card-title text-info">{{ admins|selectattr('role', 'equalto', 'academic_admin')|list|length }}</h3>
+            <p class="card-text text-muted mb-0">Academic Admins</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,254 @@
+{% extends "admin/layout.html" %}
+{% block title %}Past Releases{% endblock %}
+
+{% block content %}
+<!-- Hidden CSRF Token -->
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<style>
+  .releases-container { padding: 1rem 0; }
+  .release-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+  .release-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .release-card-header {
+    background: linear-gradient(135deg, #198754 0%, #157347 100%);
+    color: white;
+    padding: 1rem;
+  }
+  .release-card-body { padding: 1rem; }
+  .status-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .status-released { background: #d1e7dd; color: #0f5132; }
+  .stat-box {
+    text-align: center;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    border-left: 3px solid #198754;
+  }
+  .stat-value { font-size: 1.5rem; font-weight: bold; color: #198754; }
+  .stat-label { font-size: 0.75rem; color: #666; text-transform: uppercase; }
+  .filter-section {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+</style>
+
+<div class="container-fluid releases-container">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold mb-1">
+        <i class="fas fa-history text-success me-2"></i>
+        Past Releases
+      </h4>
+      <p class="text-muted mb-0">View previously released semester results</p>
+    </div>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="filter-section">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label for="academicYearFilter" class="form-label">Academic Year</label>
+        <select class="form-select" id="academicYearFilter">
+          <option value="">All Years</option>
+          {% set years = [] %}
+          {% for release in releases %}
+            {% if release.academic_year not in years %}
+              {% set _ = years.append(release.academic_year) %}
+              <option value="{{ release.academic_year }}">{{ release.academic_year }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label for="semesterFilter" class="form-label">Semester</label>
+        <select class="form-select" id="semesterFilter">
+          <option value="">All Semesters</option>
+          <option value="1">Semester 1</option>
+          <option value="2">Semester 2</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label for="programmeFilter" class="form-label">Programme</label>
+        <select class="form-select" id="programmeFilter">
+          <option value="">All Programmes</option>
+          <!-- Add programme options dynamically if needed -->
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistics -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="stat-box">
+        <div class="stat-value">{{ releases|length }}</div>
+        <div class="stat-label">Total Releases</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-box">
+        <div class="stat-value">{{ releases|selectattr('academic_year')|map(attribute='academic_year')|unique|list|length }}</div>
+        <div class="stat-label">Academic Years</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-box">
+        <div class="stat-value">{{ releases|selectattr('semester')|map(attribute='semester')|unique|list|length }}</div>
+        <div class="stat-label">Semesters</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-box">
+        <div class="stat-value">{{ releases|selectattr('programme')|map(attribute='programme')|unique|list|length }}</div>
+        <div class="stat-label">Programmes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Releases List -->
+  {% if releases %}
+    {% for release in releases %}
+      <div class="release-card" data-year="{{ release.academic_year }}" data-semester="{{ release.semester or '' }}" data-programme="{{ release.programme or '' }}">
+        <div class="release-card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="mb-1 fw-bold">
+                {{ release.programme or 'All Programmes' }} - {{ release.academic_year|start_year }}
+              </h6>
+              <small class="opacity-75">
+                {% if release.semester %}Semester {{ release.semester }}{% endif %}
+                {% if release.level %} - Level {{ release.level }}{% endif %}
+              </small>
+            </div>
+            <div class="text-end">
+              <span class="status-badge status-released">
+                <i class="fas fa-check-circle me-1"></i>
+                Released
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="release-card-body">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="row g-2">
+                <div class="col-sm-6">
+                  <small class="text-muted">Released By</small>
+                  <div class="fw-semibold">{{ release.submitted_by_name or release.submitted_by or 'System' }}</div>
+                </div>
+                <div class="col-sm-6">
+                  <small class="text-muted">Released Date</small>
+                  <div class="fw-semibold">
+                    {% if release.released_at %}
+                      {{ release.released_at.strftime('%d %b %Y, %I:%M %p') }}
+                    {% else %}
+                      N/A
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="col-sm-6">
+                  <small class="text-muted">Locked Date</small>
+                  <div class="fw-semibold">
+                    {% if release.locked_at %}
+                      {{ release.locked_at.strftime('%d %b %Y') }}
+                    {% else %}
+                      N/A
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="col-sm-6">
+                  <small class="text-muted">Total Students</small>
+                  <div class="fw-semibold">{{ release.total_students or 'N/A' }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 text-end">
+              <div class="d-flex flex-column gap-2">
+                <a href="{{ url_for('grading.semester_details_query', academic_year=release.academic_year, semester=release.semester) }}" 
+                   class="btn btn-sm btn-outline-primary" title="View Details">
+                  <i class="fas fa-eye me-1"></i>
+                  View Details
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="text-center py-5">
+      <i class="fas fa-history text-muted" style="font-size: 3rem;"></i>
+      <h5 class="text-muted mt-3">No Past Releases Found</h5>
+      <p class="text-muted">No semester results have been released yet.</p>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+// Filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+  const academicYearFilter = document.getElementById('academicYearFilter');
+  const semesterFilter = document.getElementById('semesterFilter');
+  const programmeFilter = document.getElementById('programmeFilter');
+  const releaseCards = document.querySelectorAll('.release-card');
+
+  function applyFilters() {
+    const yearValue = academicYearFilter.value.toLowerCase();
+    const semesterValue = semesterFilter.value.toLowerCase();
+    const programmeValue = programmeFilter.value.toLowerCase();
+
+    releaseCards.forEach(card => {
+      const year = card.dataset.year.toLowerCase();
+      const semester = card.dataset.semester.toLowerCase();
+      const programme = card.dataset.programme.toLowerCase();
+
+      const yearMatch = !yearValue || year.includes(yearValue);
+      const semesterMatch = !semesterValue || semester.includes(semesterValue);
+      const programmeMatch = !programmeValue || programme.includes(programmeValue);
+
+      if (yearMatch && semesterMatch && programmeMatch) {
+        card.style.display = 'block';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    // Show message if no results match filters
+    const visibleCards = Array.from(releaseCards).filter(card => card.style.display !== 'none');
+    const noResultsMsg = document.querySelector('.no-results-message');
+    if (visibleCards.length === 0 && !noResultsMsg) {
+      const message = document.createElement('div');
+      message.className = 'text-center py-3 no-results-message';
+      message.innerHTML = '<p class="text-muted">No releases match the selected filters.</p>';
+      document.querySelector('.releases-container').appendChild(message);
+    } else if (visibleCards.length > 0 && noResultsMsg) {
+      noResultsMsg.remove();
+    }
+  }
+
+  academicYearFilter.addEventListener('change', applyFilters);
+  semesterFilter.addEventListener('change', applyFilters);
+  programmeFilter.addEventListener('change', applyFilters);
+});
+</script>
+{% endblock %}

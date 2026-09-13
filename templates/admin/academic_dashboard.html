@@ -1,0 +1,240 @@
+{% extends "admin/layout.html" %}
+{% block title %}Academic Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-2 mb-5">
+
+  <h2 class="mt-4 mb-4 text-primary fw-bold">📚 Academic Dashboard</h2>
+
+  <!-- Quick Stats -->
+  <div class="row mb-4 g-3">
+    <!-- Total Students -->
+    <div class="col-md-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted mb-2 small">Total Students</h6>
+              <h3 class="mb-0 text-primary">{{ student_count }}</h3>
+            </div>
+            <i class="fas fa-user-graduate text-primary fa-2x"></i>
+          </div>
+          <small class="text-muted d-block mt-2">Active enrolled students</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Courses -->
+    <div class="col-md-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted mb-2 small">Total Courses</h6>
+              <h3 class="mb-0 text-success">{{ course_count }}</h3>
+            </div>
+            <i class="fas fa-book text-success fa-2x"></i>
+          </div>
+          <small class="text-muted d-block mt-2">Available courses</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Current Academic Year -->
+    <div class="col-md-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted mb-2 small">Current Academic Year</h6>
+              {% if current_academic_year %}
+                <h3 class="mb-0 text-info">
+                  {{ current_academic_year.start_date.strftime('%Y') }}
+                </h3>
+              {% else %}
+                <h3 class="mb-0 text-secondary">Not Set</h3>
+              {% endif %}
+            </div>
+            <i class="fas fa-calendar-alt text-info fa-2x"></i>
+          </div>
+          <small class="text-muted d-block mt-2">Academic period</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Role -->
+    <div class="col-md-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted mb-2 small">Your Role</h6>
+              <h3 class="mb-0 text-warning">{{ admin_role_display }}</h3>
+            </div>
+            <i class="fas fa-user-shield text-warning fa-2x"></i>
+          </div>
+          <small class="text-muted d-block mt-2">Permission level</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Actions -->
+  <div class="row mb-4 g-3">
+    <div class="col-12">
+      <h5 class="text-dark fw-bold mb-3">Quick Actions</h5>
+    </div>
+    
+    <!-- Virtual Class Management -->
+    <div class="col-md-6 col-lg-3">
+      <a href="{{ url_for('admin.admin_exam_timetable') }}" class="btn btn-outline-primary w-100 text-start py-3">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-calendar-alt fa-lg me-3"></i>
+          <div>
+            <div class="fw-bold">Manage Exams Timetable</div>
+            <small class="text-muted">Create and edit exams timetable</small>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <a href="{{ url_for('admin.manage_assignments') }}" class="btn btn-outline-primary w-100 text-start py-3">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-tasks fa-lg me-3"></i>
+          <div>
+            <div class="fw-bold">Manage Assignments</div>
+            <small class="text-muted">Create and track assignments</small>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <a href="{{ url_for('admin.manage_courses') }}" class="btn btn-outline-primary w-100 text-start py-3">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-book fa-lg me-3"></i>
+          <div>
+            <div class="fw-bold">Manage Courses</div>
+            <small class="text-muted">View and organize courses</small>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <a href="{{ url_for('admin.manage_timetable') }}" class="btn btn-outline-primary w-100 text-start py-3">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-clock fa-lg me-3"></i>
+          <div>
+            <div class="fw-bold">Manage Timetable</div>
+            <small class="text-muted">Create schedules</small>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Grading Actions -->
+  <div class="row mb-4 g-3">
+    <div class="col-12">
+      <h5 class="text-dark fw-bold mb-3">Grading & Assessment</h5>
+    </div>
+    
+    <div class="col-md-6 col-lg-3">
+      <a href="{{ url_for('grading.manage_grading') }}" class="btn btn-outline-success w-100 text-start py-3">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-chart-bar fa-lg me-3"></i>
+          <div>
+            <div class="fw-bold">Manage Grading</div>
+            <small class="text-muted">Configure grading schemes</small>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <a href="{{ url_for('admin.result_vetting_list') }}" class="btn btn-outline-success w-100 text-start py-3">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-clipboard-check fa-lg me-3"></i>
+          <div>
+            <div class="fw-bold">Result Vetting</div>
+            <small class="text-muted">Approve/reject results</small>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Current Academic Year Details -->
+  {% if current_academic_year %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header text-white" style="background: linear-gradient(90deg, #0d6efd, #0dcaf0);">
+      <i class="fas fa-calendar-alt me-2"></i> Current Academic Year Details
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label class="form-label text-muted small">Academic Year</label>
+            <p class="h6 mb-0">{{ current_academic_year.start_date.strftime('%B %d, %Y') }} - {{ current_academic_year.end_date.strftime('%B %d, %Y') }}</p>
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-muted small">Semester 1</label>
+            <p class="h6 mb-0">{{ current_academic_year.semester_1_start.strftime('%b %d, %Y') }} to {{ current_academic_year.semester_1_end.strftime('%b %d, %Y') }}</p>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label class="form-label text-muted small">Semester 2</label>
+            <p class="h6 mb-0">{{ current_academic_year.semester_2_start.strftime('%b %d, %Y') }} to {{ current_academic_year.semester_2_end.strftime('%b %d, %Y') }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>No Current Academic Year Set</strong>
+    <p class="mb-0">Please contact your administrator to set up the current academic year.</p>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endif %}
+
+  <!-- Info Card -->
+  <div class="card shadow-sm border-info">
+    <div class="card-body">
+      <h6 class="card-title text-info">
+        <i class="fas fa-info-circle me-2"></i> Academic Admin Information
+      </h6>
+      <p class="card-text small">
+        As an Academic Admin, you have access to manage all academic-related activities including exams, assignments, 
+        courses, timetables, and grading schemes. You can also vet and approve student results before they are released.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.btn-outline-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+}
+
+.btn-outline-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.15);
+}
+
+.card {
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+}
+</style>
+{% endblock %}

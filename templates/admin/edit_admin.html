@@ -1,0 +1,251 @@
+{% extends "admin/layout.html" %}
+{% block title %}Edit Admin - {{ admin.admin_id }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h2 class="mb-0">
+        <i class="fas fa-edit me-2 text-primary"></i> Edit Admin Account
+      </h2>
+      <small class="text-muted">{{ admin.admin_id }} — {{ admin.user.full_name if admin.user else admin.username }}</small>
+    </div>
+    <a href="{{ url_for('admin.list_admins') }}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left me-1"></i> Back to List
+    </a>
+  </div>
+
+  <form method="POST" action="{{ url_for('admin.edit_admin', admin_id=admin.admin_id) }}">
+    <!-- ====== BASIC INFO (READ-ONLY) ====== -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">Basic Information (Read-Only)</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Admin ID</label>
+            <input type="text" class="form-control" value="{{ admin.admin_id }}" readonly>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Name</label>
+            <input type="text" class="form-control" value="{{ admin.user.full_name if admin.user else '—' }}" readonly>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="text" class="form-control" value="{{ admin.email }}" readonly>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Role</label>
+            <input type="text" class="form-control" value="{{ admin.role|replace('_', ' ')|title }}" readonly>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== PERMISSIONS ====== -->
+    {% if admin.role == 'finance_admin' %}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">💰 Finance Admin Permissions</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-4">Select which financial operations this admin can perform:</p>
+        
+        <div class="row g-4">
+          <!-- View Finances -->
+          <div class="col-md-6">
+            <div class="card bg-light p-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_view_finances" id="can_view_finances" 
+                       {% if admin.can_view_finances %}checked{% endif %}>
+                <label class="form-check-label" for="can_view_finances">
+                  <strong>View Finances</strong>
+                </label>
+              </div>
+              <small class="text-muted d-block mt-2">Can view payment records, transactions, and financial data</small>
+            </div>
+          </div>
+
+          <!-- Edit Finances -->
+          <div class="col-md-6">
+            <div class="card bg-light p-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_edit_finances" id="can_edit_finances"
+                       {% if admin.can_edit_finances %}checked{% endif %}>
+                <label class="form-check-label" for="can_edit_finances">
+                  <strong>Edit Finances</strong>
+                </label>
+              </div>
+              <small class="text-muted d-block mt-2">Can modify fees, transactions, and financial records</small>
+            </div>
+          </div>
+
+          <!-- Approve Payments -->
+          <div class="col-md-6">
+            <div class="card bg-light p-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_approve_payments" id="can_approve_payments"
+                       {% if admin.can_approve_payments %}checked{% endif %}>
+                <label class="form-check-label" for="can_approve_payments">
+                  <strong>Approve Payments</strong>
+                </label>
+              </div>
+              <small class="text-muted d-block mt-2">Can approve or reject student fee payments</small>
+            </div>
+          </div>
+
+          <!-- Manage Fees -->
+          <div class="col-md-6">
+            <div class="card bg-light p-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_manage_fees" id="can_manage_fees"
+                       {% if admin.can_manage_fees %}checked{% endif %}>
+                <label class="form-check-label" for="can_manage_fees">
+                  <strong>Manage Fees</strong>
+                </label>
+              </div>
+              <small class="text-muted d-block mt-2">Can create and modify fee structures for programmes</small>
+            </div>
+          </div>
+
+          <!-- View Reports -->
+          <div class="col-md-6">
+            <div class="card bg-light p-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_view_reports" id="can_view_reports"
+                       {% if admin.can_view_reports %}checked{% endif %}>
+                <label class="form-check-label" for="can_view_reports">
+                  <strong>View Reports</strong>
+                </label>
+              </div>
+              <small class="text-muted d-block mt-2">Can view financial reports and analytics</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% elif admin.role == 'admissions_admin' %}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">👥 Admissions Admin Permissions</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-4">Select which admissions operations this admin can perform:</p>
+        
+        <div class="row g-4">
+          <!-- View Admissions -->
+          <div class="col-md-6">
+            <div class="card bg-light p-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_view_admissions" id="can_view_admissions"
+                       {% if admin.can_view_admissions %}checked{% endif %}>
+                <label class="form-check-label" for="can_view_admissions">
+                  <strong>View Admissions</strong>
+                </label>
+              </div>
+              <small class="text-muted d-block mt-2">Can view student applications and admissions records</small>
+            </div>
+          </div>
+
+          <!-- Edit Admissions -->
+          <div class="col-md-6">
+            <div class="card bg-light p-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_edit_admissions" id="can_edit_admissions"
+                       {% if admin.can_edit_admissions %}checked{% endif %}>
+                <label class="form-check-label" for="can_edit_admissions">
+                  <strong>Approve/Reject Admissions</strong>
+                </label>
+              </div>
+              <small class="text-muted d-block mt-2">Can approve or reject student applications</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% elif admin.role == 'academic_admin' %}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">📚 Academic Admin Permissions</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-4">Select which academic operations this admin can perform:</p>
+        
+        <div class="row g-4">
+          <!-- View Academics -->
+          <div class="col-md-6">
+            <div class="card bg-light p-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_view_academics" id="can_view_academics"
+                       {% if admin.can_view_academics %}checked{% endif %}>
+                <label class="form-check-label" for="can_view_academics">
+                  <strong>View Academic Records</strong>
+                </label>
+              </div>
+              <small class="text-muted d-block mt-2">Can view student grades, transcripts, and academic data</small>
+            </div>
+          </div>
+
+          <!-- Edit Academics -->
+          <div class="col-md-6">
+            <div class="card bg-light p-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="can_edit_academics" id="can_edit_academics"
+                       {% if admin.can_edit_academics %}checked{% endif %}>
+                <label class="form-check-label" for="can_edit_academics">
+                  <strong>Edit Academic Records</strong>
+                </label>
+              </div>
+              <small class="text-muted d-block mt-2">Can modify grades, results, and academic information</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ====== ACTIONS ====== -->
+    <div class="d-flex gap-2 mb-4">
+      <button type="submit" class="btn btn-primary btn-lg">
+        <i class="fas fa-save me-1"></i> Save Changes
+      </button>
+      <a href="{{ url_for('admin.list_admins') }}" class="btn btn-secondary btn-lg">
+        <i class="fas fa-times me-1"></i> Cancel
+      </a>
+    </div>
+  </form>
+
+  <!-- ====== ADMIN ACCOUNT STATUS ====== -->
+  <div class="card shadow-sm border-warning">
+    <div class="card-header bg-warning bg-opacity-10 text-warning">
+      <h5 class="mb-0">
+        <i class="fas fa-info-circle me-2"></i> Account Information
+      </h5>
+    </div>
+    <div class="card-body">
+      <table class="table table-sm mb-0">
+        <tr>
+          <td class="text-muted">Account Status:</td>
+          <td><span class="badge bg-success">Active</span></td>
+        </tr>
+        <tr>
+          <td class="text-muted">Last Login:</td>
+          <td>{{ admin.last_login.strftime('%b %d, %Y %H:%M') if admin.last_login else 'Never' }}</td>
+        </tr>
+        <tr>
+          <td class="text-muted">Account Created:</td>
+          <td>{{ admin.created_at.strftime('%b %d, %Y %H:%M') if admin.created_at else '—' }}</td>
+        </tr>
+        <tr>
+          <td class="text-muted">Last Updated:</td>
+          <td>{{ admin.updated_at.strftime('%b %d, %Y %H:%M') if admin.updated_at else '—' }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
