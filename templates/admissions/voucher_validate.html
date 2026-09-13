@@ -1,0 +1,27 @@
+{% extends 'admissions/base_admission.html' %}
+{% block title %}Voucher Authentication{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-5">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="mb-3">Voucher Authentication</h5>
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+              <label class="form-label">Voucher PIN</label>
+              <input type="text" name="pin" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Voucher Serial</label>
+              <input type="text" name="serial" class="form-control" required>
+            </div>
+            <button class="btn btn-warning w-100">Validate Voucher</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

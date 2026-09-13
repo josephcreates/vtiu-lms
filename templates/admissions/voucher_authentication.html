@@ -1,0 +1,215 @@
+{% extends "admissions/base_admission.html" %}
+
+{% block title %}Voucher Authentication | Admissions{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+
+    <!-- Hidden input for applicant type -->
+    <input type="hidden" id="applicantType" name="applicant_type" value="">
+
+    <!-- PAGE HEADER -->
+    <div class="text-center mb-5">
+        <h3 class="fw-bold">Online Application Access</h3>
+        <p class="text-muted">
+            Select applicant type and authenticate your application voucher to continue
+        </p>
+    </div>
+
+    <!-- STEP PROGRESS INDICATOR -->
+    <div class="mb-5 d-flex justify-content-center">
+        <div class="progress" style="width: 300px; height: 8px;">
+            <div id="stepProgress" class="progress-bar bg-success" role="progressbar" style="width: 50%;"></div>
+        </div>
+    </div>
+
+    <!-- ================= STEP 1 ================= -->
+    <div id="step1">
+        <div class="text-center mb-4">
+            <span class="badge step-badge">STEP 1</span>
+            <h5 class="mt-2 fw-semibold">Select Applicant Type</h5>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+            <!-- Ghanaian -->
+            <div class="col-md-6">
+                <div class="card applicant-card gh-card shadow-sm h-100 text-center selectable-card"
+                     onclick="goToStep2('ghanaian', this)">
+                    <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center">
+                        <img src="{{ url_for('admissions.static', filename='ghana.jpg') }}" class="mb-3" style="max-width:120px;">
+                        <h5 class="fw-bold">Ghanaian Applicant</h5>
+                        <p class="text-muted small text-center">
+                            For Ghanaian nationals applying through the regular admissions process.
+                        </p>
+                        <button type="button" class="btn btn-gradient-success mt-auto px-4">Continue</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- International -->
+            <div class="col-md-6">
+                <div class="card applicant-card intl-card shadow-sm h-100 text-center selectable-card"
+                     onclick="goToStep2('international', this)">
+                    <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center">
+                        <img src="{{ url_for('admissions.static', filename='International.png') }}" class="mb-3" style="max-width:120px;">
+                        <h5 class="fw-bold">International Applicant</h5>
+                        <p class="text-muted small text-center">
+                            For non-Ghanaian applicants applying from outside Ghana.
+                        </p>
+                        <button type="button" class="btn btn-gradient-primary mt-auto px-4">Continue</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= STEP 2 ================= -->
+    <div id="step2" class="d-none">
+
+        <div class="text-center mb-4">
+            <span class="badge step-badge">STEP 2</span>
+            <h5 class="mt-2 fw-semibold">Voucher Purchase / Verification</h5>
+            <p class="text-muted">Choose to purchase a new voucher or verify an existing one</p>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+
+            <!-- Purchase Voucher Card -->
+            <div class="col-md-5">
+                <div class="card step2-card shadow-sm h-100 text-center p-4">
+                    <div class="icon mb-3">
+                        <img src="{{ url_for('admissions.static', filename='purchase_icon.png') }}" alt="Purchase Voucher" width="60">
+                    </div>
+                    <h5 class="fw-bold">Purchase Voucher Online</h5>
+                    <p class="text-muted small">
+                        I do not have a voucher card and would like to purchase one online to begin my admission process.
+                    </p>
+                    <a href="{{ url_for('admissions.purchase_voucher') }}" class="btn btn-success mt-3 px-4">
+                        Continue
+                    </a>
+                </div>
+            </div>
+
+            <!-- Verify Voucher Card -->
+            <div class="col-md-5">
+                <div class="card step2-card shadow-sm h-100 text-center p-4">
+                    <div class="icon mb-3">
+                        <img src="{{ url_for('admissions.static', filename='verify_icon.png') }}" alt="Verify Voucher" width="60">
+                    </div>
+                    <h5 class="fw-bold">Voucher Verification</h5>
+                    <p class="text-muted small">
+                        I have already purchased my voucher from an approved outlet.
+                    </p>
+
+                    <!-- Voucher Verification Form -->
+                    <form method="POST" class="mt-3">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.voucher_pin.label(class="form-label") }}
+                            {{ form.voucher_pin(class="form-control", placeholder="Enter your voucher PIN") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.serial_number.label(class="form-label") }}
+                            {{ form.serial_number(class="form-control", placeholder="Enter your voucher Serial Number") }}
+                        </div>
+
+                        <button type="submit" class="btn btn-success px-4">{{ form.submit.label.text }}</button>
+                    </form>
+
+                    {% if vouchers %}
+                    <!-- Optional: Show purchased vouchers -->
+                    <div class="mt-4">
+                        <h6 class="fw-semibold">Your Purchased Vouchers:</h6>
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>PIN</th>
+                                    <th>Serial</th>
+                                    <th>Amount</th>
+                                    <th>Used?</th>
+                                    <th>Valid Until</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for v in vouchers %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ v.pin }}</td>
+                                    <td>{{ v.serial }}</td>
+                                    <td>{{ v.amount }}</td>
+                                    <td>
+                                        {% if v.is_used %}
+                                        <span class="badge bg-success">Yes</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">No</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ v.valid_until.strftime('%d %b %Y') if v.valid_until else '—' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ================= JS ================= -->
+<script>
+function goToStep2(type, card) {
+    var input = document.getElementById('applicantType');
+    if (!input) {
+        input = document.createElement('input');
+        input.type = 'hidden';
+        input.id = 'applicantType';
+        input.name = 'applicant_type';
+        document.querySelector('.container')?.appendChild(input);
+    }
+    input.value = type;
+
+    document.getElementById('step1').classList.add('d-none');
+    document.getElementById('step2').classList.remove('d-none');
+
+    document.getElementById('stepProgress').style.width = '100%';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    document.querySelectorAll('.selectable-card').forEach(c => c.classList.remove('border-success', 'border-3'));
+    if (card) card.classList.add('border-success', 'border-3');
+}
+</script>
+
+<!-- ================= STYLES ================= -->
+<style>
+.step-badge {
+    background: linear-gradient(90deg, #198754, #20c997);
+    color: #fff;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+}
+.applicant-card { border-radius: 12px; transition: transform .3s, box-shadow .3s, border .2s; cursor: pointer; }
+.applicant-card:hover { transform: translateY(-6px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+.gh-card { border-top: 4px solid #198754; }
+.intl-card { border-top: 4px solid #0d6efd; }
+.selectable-card.border-success { box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.5); }
+
+.step2-card { border-radius: 12px; transition: transform .3s, box-shadow .3s; background-color: #fff; }
+.step2-card:hover { transform: translateY(-5px); box-shadow: 0 16px 32px rgba(0,0,0,0.08); }
+.step2-card .icon img { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+
+.btn-gradient-success { background: linear-gradient(90deg, #198754, #20c997); color: #fff; border: none; }
+.btn-gradient-success:hover { background: linear-gradient(90deg, #20c997, #198754); }
+.btn-gradient-primary { background: linear-gradient(90deg, #0d6efd, #0dcaf0); color: #fff; border: none; }
+.btn-gradient-primary:hover { background: linear-gradient(90deg, #0dcaf0, #0d6efd); }
+</style>
+{% endblock %}

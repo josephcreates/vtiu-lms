@@ -1,0 +1,73 @@
+{% extends "admissions/base_admission.html" %}
+{% block title %}Pay Admission Fees{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h3 class="fw-bold">Admission Fee Payment</h3>
+  <p class="text-muted">You must pay the full fee for your admitted programme to complete registration.</p>
+
+  <div class="card mb-3">
+    <div class="card-header bg-primary text-white">Fee Summary</div>
+    <div class="card-body">
+      <ul class="list-group mb-3">
+        {% for it in items %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>{{ it.description }}</div>
+            <div>GHS {{ "%.2f"|format(it.amount|float) }}</div>
+          </li>
+        {% endfor %}
+        <li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
+          <div>Total</div>
+          <div>GHS {{ "%.2f"|format(total_fee) }}</div>
+        </li>
+      </ul>
+
+      <form method="post" enctype="multipart/form-data" id="appPaymentForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="mb-3">
+          <label class="form-label">Amount (GHS) — full payment required</label>
+          <input id="amount" name="amount" type="number" step="0.01" class="form-control" value="{{ "%.2f"|format(total_fee) }}" readonly>
+          <div class="form-text">Amount is pre-filled and cannot be changed — full payment only.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Payment Method</label>
+          <select name="method" class="form-select" required>
+            <option value="mobile_money">Mobile Money</option>
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="cash">Cash</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Upload proof (optional but recommended)</label>
+          <input type="file" name="proof" class="form-control" accept="image/*,application/pdf">
+        </div>
+
+        <div class="d-flex justify-content-between">
+          <a href="{{ url_for('admissions.dashboard') }}" class="btn btn-outline-secondary">Back</a>
+          <button id="submitBtn" type="submit" class="btn btn-success">Pay Full Amount (GHS {{ "%.2f"|format(total_fee) }})</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // amount is readonly and equal to total_fee; no extra validation needed.
+  // but keep a safety check on submit to ensure amount equals total_fee
+  const form = document.getElementById('appPaymentForm');
+  form.addEventListener('submit', function(e) {
+    const amt = parseFloat(document.getElementById('amount').value || '0');
+    const total = parseFloat("{{ '%.2f'|format(total_fee) }}");
+    if (Math.abs(amt - total) > 0.01) {
+      e.preventDefault();
+      alert('Full payment required. Amount must equal the total fee.');
+    }
+    // otherwise allow POST
+  });
+});
+</script>
+{% endblock %}

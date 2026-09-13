@@ -1,0 +1,145 @@
+{% extends "admissions/base_admission.html" %}
+{% block title %}Declaration | Admissions{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+
+    <!-- Page Header -->
+    <div class="mb-4">
+        <h3 class="fw-bold">Application Declaration</h3>
+        <p class="text-muted">
+            By submitting this application, you declare that all the information provided is true and accurate to the best of your knowledge.
+        </p>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="mb-4">
+        <ul class="progressbar">
+            <li class="active">Personal Info</li>
+            <li class="active">Guardian</li>
+            <li class="active">Programme</li>
+            <li class="active">Education</li>
+            <li class="active">Exams</li>
+            <li class="active">Upload</li>
+            <li class="active">Declaration</li>
+        </ul>
+    </div>
+
+    <!-- Declaration Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white fw-bold">
+            Declaration
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admissions.declaration') }}">
+                {{ form.hidden_tag() }}
+
+                <div class="form-check mb-3">
+                    {{ form.accept_terms(class="form-check-input") }}
+                    <label class="form-check-label" for="accept_terms">
+                        I hereby declare that all information provided in this application is true and complete.
+                    </label>
+                    {% for error in form.accept_terms.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="form-check mb-3">
+                    {{ form.agree_policy(class="form-check-input") }}
+                    <label class="form-check-label" for="agree_policy">
+                        I agree to abide by the institution’s policies and rules if admitted.
+                    </label>
+                    {% for error in form.agree_policy.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('admissions.preview') }}" class="btn btn-outline-secondary">
+                        Back
+                    </a>
+
+                    <button type="submit" class="btn btn-success" id="submitButton" disabled>
+                        Submit Application
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<!-- Progress Bar Styling -->
+<style>
+.progressbar {
+    display: flex;
+    justify-content: space-between;
+    list-style: none;
+    counter-reset: step;
+    padding-left: 0;
+}
+.progressbar li {
+    text-align: center;
+    position: relative;
+    flex: 1;
+    font-size: 14px;
+    color: #6c757d;
+}
+.progressbar li::before {
+    content: counter(step);
+    counter-increment: step;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    border: 2px solid #6c757d;
+    display: block;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    background: #fff;
+}
+.progressbar li::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: #6c757d;
+    top: 15px;
+    left: -50%;
+    z-index: -1;
+}
+.progressbar li:first-child::after {
+    content: none;
+}
+.progressbar li.active {
+    color: #0d6efd;
+    font-weight: bold;
+}
+.progressbar li.active::before {
+    border-color: #0d6efd;
+    background: #0d6efd;
+    color: #fff;
+}
+.progressbar li.active::after {
+    background: #0d6efd;
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const submitBtn = document.getElementById('submitButton');
+    const checkboxes = [
+        document.getElementById('accept_terms'),
+        document.getElementById('agree_policy')
+    ];
+
+    function toggleSubmit() {
+        submitBtn.disabled = !checkboxes.every(cb => cb.checked);
+    }
+
+    checkboxes.forEach(cb => cb.addEventListener('change', toggleSubmit));
+
+    // Initial check in case form is reloaded with checkboxes pre-checked
+    toggleSubmit();
+});
+</script>
+{% endblock %}

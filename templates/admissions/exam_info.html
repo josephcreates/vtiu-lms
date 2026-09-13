@@ -1,0 +1,185 @@
+{% extends "admissions/base_admission.html" %}
+
+{% block title %}Exam Information | Admissions{% endblock %}
+
+{% block extra_css %}
+<style>
+/* compact progress bar */
+.progressbar {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem 0;
+  counter-reset: step;
+  align-items: flex-start;
+}
+.progressbar li {
+  flex: 1 1 0;
+  text-align: center;
+  position: relative;
+  color: #6c757d;
+  font-size: 0.9rem;
+  padding-top: 6px;
+}
+.progressbar li::before {
+  content: counter(step);
+  counter-increment: step;
+  width: 30px; height: 30px; line-height: 30px;
+  display: block; margin: 0 auto .5rem;
+  border-radius: 50%; border: 2px solid #6c757d;
+  background: #fff; color: #6c757d; font-weight:600;
+  box-sizing: border-box;
+}
+.progressbar li::after {
+  content: "";
+  position: absolute; top: 20px; left: 50%; right: -50%;
+  height: 2px; background: #e9ecef; z-index: -1; transform: translateX(-50%);
+}
+.progressbar li:first-child::after { content: none; }
+.progressbar li.active { color: #0d6efd; font-weight: 600; }
+.progressbar li.active::before { border-color: #0d6efd; background: #0d6efd; color:#fff; }
+.progressbar li.active::after { background: #0d6efd; }
+
+/* small responsive tweaks */
+@media (max-width:576px){
+  .progressbar li::before { width:26px; height:26px; line-height:26px; }
+  .exam-sitting { padding: .5rem; }
+}
+.exam-sitting { border: 1px dashed #e9ecef; border-radius:6px; padding: .75rem; background: #fbfbfb; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h3 class="fw-bold mb-1">Exam Information</h3>
+      <p class="text-muted mb-0">Provide your SSSCE / WASSCE details. Include index number and year for each sitting (if any).</p>
+    </div>
+    <div class="text-end text-muted small">
+      <div>Step 5 of 7</div>
+    </div>
+  </div>
+
+  <ul class="progressbar mb-3" aria-hidden="true">
+    <li class="active">Personal</li>
+    <li class="active">Guardian</li>
+    <li class="active">Programme</li>
+    <li class="active">Education</li>
+    <li class="active">Exams</li>
+    <li>Upload</li>
+    <li>Declare</li>
+  </ul>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+      SSSCE / WASSCE Results
+    </div>
+
+    <div class="card-body">
+      <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="row g-3">
+          <!-- Exam type + sitting selector (overall) -->
+          <div class="col-md-6">
+            <label for="{{ form.exam_type.id }}" class="form-label fw-semibold">Exam Type</label>
+            {{ form.exam_type(class="form-select", id=form.exam_type.id) }}
+            {% if form.exam_type.errors %}
+              <div class="invalid-feedback d-block">{{ form.exam_type.errors[0] }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-md-6">
+            <label for="{{ form.sitting.id }}" class="form-label fw-semibold">Sitting (preferred)</label>
+            {{ form.sitting(class="form-select", id=form.sitting.id) }}
+            {% if form.sitting.errors %}
+              <div class="invalid-feedback d-block">{{ form.sitting.errors[0] }}</div>
+            {% endif %}
+          </div>
+
+          <!-- FIRST SITTING -->
+          <div class="col-12">
+            <div class="exam-sitting">
+              <div class="row g-2 align-items-center">
+                <div class="col-12">
+                  <strong>FIRST SITTING</strong>
+                </div>
+                <div class="col-md-6">
+                  <label for="{{ form.first_index.id }}" class="form-label">Index Number</label>
+                  {{ form.first_index(class="form-control", id=form.first_index.id, placeholder="e.g. 00101214021") }}
+                  {% if form.first_index.errors %}
+                    <div class="invalid-feedback d-block">{{ form.first_index.errors[0] }}</div>
+                  {% endif %}
+                </div>
+                <div class="col-md-6">
+                  <label for="{{ form.first_year.id }}" class="form-label">Year</label>
+                  {{ form.first_year(class="form-control", id=form.first_year.id, placeholder="e.g. 2018") }}
+                  {% if form.first_year.errors %}
+                    <div class="invalid-feedback d-block">{{ form.first_year.errors[0] }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECOND SITTING -->
+          <div class="col-12">
+            <div class="exam-sitting">
+              <div class="row g-2 align-items-center">
+                <div class="col-12"><strong>SECOND SITTING (if any)</strong></div>
+                <div class="col-md-6">
+                  <label for="{{ form.second_index.id }}" class="form-label">Index Number</label>
+                  {{ form.second_index(class="form-control", id=form.second_index.id, placeholder="optional") }}
+                  {% if form.second_index.errors %}
+                    <div class="invalid-feedback d-block">{{ form.second_index.errors[0] }}</div>
+                  {% endif %}
+                </div>
+                <div class="col-md-6">
+                  <label for="{{ form.second_year.id }}" class="form-label">Year</label>
+                  {{ form.second_year(class="form-control", id=form.second_year.id, placeholder="optional") }}
+                  {% if form.second_year.errors %}
+                    <div class="invalid-feedback d-block">{{ form.second_year.errors[0] }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- THIRD SITTING -->
+          <div class="col-12">
+            <div class="exam-sitting">
+              <div class="row g-2 align-items-center">
+                <div class="col-12"><strong>THIRD SITTING (if any)</strong></div>
+                <div class="col-md-6">
+                  <label for="{{ form.third_index.id }}" class="form-label">Index Number</label>
+                  {{ form.third_index(class="form-control", id=form.third_index.id, placeholder="optional") }}
+                  {% if form.third_index.errors %}
+                    <div class="invalid-feedback d-block">{{ form.third_index.errors[0] }}</div>
+                  {% endif %}
+                </div>
+                <div class="col-md-6">
+                  <label for="{{ form.third_year.id }}" class="form-label">Year</label>
+                  {{ form.third_year(class="form-control", id=form.third_year.id, placeholder="optional") }}
+                  {% if form.third_year.errors %}
+                    <div class="invalid-feedback d-block">{{ form.third_year.errors[0] }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div> <!-- /.row -->
+
+        <div class="d-flex justify-content-between align-items-center mt-4">
+          <a href="{{ url_for('admissions.education') }}" class="btn btn-outline-secondary">Back</a>
+          <button type="submit" class="btn btn-primary">Save & Continue</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

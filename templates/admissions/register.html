@@ -1,0 +1,152 @@
+{% extends 'admissions/base_admission.html' %}
+{% block title %}Create Account{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Background carousel container */
+  #background-carousel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    transition: background-image 0.8s ease-in-out;
+  }
+
+  /* Dark overlay for readability */
+  #background-carousel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1;
+  }
+
+  /* Adjust content to overlay the background */
+  .container {
+    position: relative;
+    z-index: 10;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Background Carousel -->
+<div id="background-carousel"></div>
+
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 90vh;">
+
+  <div class="card shadow-lg border-0" style="max-width: 450px; width:100%; border-radius:15px;">
+    <div class="card-body p-4">
+
+      <!-- Title -->
+      <div class="text-center mb-4">
+        <h3 class="fw-bold text-primary">Create Applicant Account</h3>
+        <p class="text-muted small">Register to start your admission application</p>
+      </div>
+
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Email -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Email Address</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light">
+              <i class="bi bi-envelope"></i>
+            </span>
+            <input type="email" name="email" class="form-control" placeholder="Enter your email" required>
+          </div>
+        </div>
+
+        <!-- Phone -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Phone Number</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light">
+              <i class="bi bi-telephone"></i>
+            </span>
+            <input type="text" name="phone" class="form-control" placeholder="Enter your phone number" required>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Password</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light">
+              <i class="bi bi-lock"></i>
+            </span>
+            <input type="password" name="password" id="passwordField" class="form-control" placeholder="Create a password" required>
+            <span class="input-group-text bg-light" style="cursor:pointer;" onclick="togglePassword()">
+              <i class="bi bi-eye"></i>
+            </span>
+          </div>
+          <small class="text-muted">Use at least 6 characters.</small>
+        </div>
+
+        <!-- Button -->
+        <div class="d-grid mt-4">
+          <button class="btn btn-primary btn-lg shadow-sm">Create Account</button>
+        </div>
+      </form>
+
+      <hr class="my-4">
+
+      <!-- Login Link -->
+      <div class="text-center">
+        <p class="small text-muted mb-0">
+          Already have an account?
+          <a href="{{ url_for('admissions.login') }}" class="fw-semibold">Login here</a>
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Background Carousel & Password Toggle Script -->
+<script>
+// Background images array
+const backgroundImages = [
+  "{{ url_for('static', filename='download (1).jpg') }}",
+  "{{ url_for('static', filename='download.jpg') }}",
+  "{{ url_for('static', filename='News.jpg') }}",
+  "{{ url_for('static', filename='Practical work at WCC_ Image supplied by WCC_.jpg') }}",
+  "{{ url_for('static', filename='The Biased Policies That Are Pushing Black Girls Out of School.jpg') }}"
+];
+
+let currentImageIndex = 0;
+
+// Initialize background carousel
+function initBackgroundCarousel() {
+  const carousel = document.getElementById('background-carousel');
+  
+  // Set initial background
+  carousel.style.backgroundImage = `url('${backgroundImages[currentImageIndex]}')`;
+  
+  // Change background every 10 seconds
+  setInterval(() => {
+    currentImageIndex = (currentImageIndex + 1) % backgroundImages.length;
+    carousel.style.backgroundImage = `url('${backgroundImages[currentImageIndex]}')`;
+  }, 10000);
+}
+
+// Password toggle function
+function togglePassword() {
+  const field = document.getElementById("passwordField");
+  field.type = field.type === "password" ? "text" : "password";
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', initBackgroundCarousel);
+</script>
+
+{% endblock %}

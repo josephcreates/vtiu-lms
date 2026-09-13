@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admissions{% endblock %}</title>
+
+    <!-- Bootstrap (safe default) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    {% block extra_css %}{% endblock %}
+
+    <style>
+        /* Reset */
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        /* FULLSCREEN BACKGROUND BEHIND EVERYTHING */
+        body {
+            background: linear-gradient(180deg, #f2f6ff 0%, #e7f0ff 50%, #edf7f3 100%);
+            min-height: 100vh;
+            position: relative;
+            z-index: 0;
+        }
+
+        /* Optional subtle overlay shapes */
+        body::after {
+            content: "";
+            position: fixed;
+            bottom: -100px;
+            right: -100px;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+            filter: blur(20px);
+        }
+
+        /* NAVBAR ALWAYS ON TOP - ABOVE BACKGROUND */
+        .navbar {
+            position: relative;
+            z-index: 100;
+            background-color: #0d6efd !important;
+        }
+
+        /* Logo styling */
+        .navbar-brand img {
+            max-height: 45px;
+            object-fit: contain;
+            filter: brightness(1.1);
+        }
+
+        /* Main content - above background but below navbar */
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Flash messages */
+        .alert {
+            position: relative;
+            z-index: 50;
+        }
+
+        /* ===== UNIVERSITY HEADER STYLE ===== */
+.uni-header {
+    background: #6a74791f;
+    padding: 14px 0;
+    position: relative;
+    z-index: 100;
+}
+
+/* Logo */
+.uni-logo {
+    height: 80px;
+    object-fit: contain;
+}
+
+/* Title area */
+.uni-title .school-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #d8ca0d;
+    letter-spacing: 0.5px;
+}
+
+.uni-title .portal-name {
+    font-size: 13px;
+    color: #d8ca0d;
+    margin-top: 2px;
+}
+
+/* Navigation */
+.uni-nav a {
+    margin-left: 25px;
+    text-decoration: none;
+    font-weight: 600;
+    color: #1e2a38;
+    transition: 0.2s ease;
+}
+
+.uni-nav a:hover {
+    color: #0d6efd;
+}
+
+/* Apply Button Style (like university portals) */
+.apply-btn {
+    border: 2px solid #f4b400;
+    padding: 6px 14px;
+    border-radius: 4px;
+    color: #1e2a38 !important;
+}
+
+.apply-btn:hover {
+    background: #f4b400;
+    color: #000 !important;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .uni-header .container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .uni-nav a {
+        margin-left: 0;
+        margin-right: 15px;
+    }
+}
+
+    </style>
+</head>
+<body>
+
+<!-- ===== UNIVERSITY STYLE HEADER ===== -->
+<header class="uni-header shadow-sm">
+  <div class="container d-flex align-items-center justify-content-between">
+
+    <!-- LEFT: Logo + Institution Name -->
+    <div class="d-flex align-items-center gap-3">
+      <img src="{{ url_for('static', filename='VTIU-LOGO.png') }}" class="uni-logo">
+      <div class="uni-title">
+        <div class="school-name">VOCATIONAL & TECHNICAL INSPIRED UNIVERSITY</div>
+        <div class="portal-name">Admissions Portal</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Navigation -->
+    <nav class="uni-nav">
+      {% if session.get('applicant_id') %}
+        <a href="{{ url_for('admissions.dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('admissions.logout') }}">Logout</a>
+      {% else %}
+        <a href="{{ url_for('admissions.login') }}">Login</a>
+        <a href="{{ url_for('admissions.register') }}" class="apply-btn">Apply Now</a>
+      {% endif %}
+    </nav>
+
+  </div>
+</header>
+
+<!-- CONTENT WRAPPER (ABOVE BACKGROUND) -->
+<div class="content-wrapper">
+    <div class="container mt-4">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Content -->
+        {% block content %}{% endblock %}
+
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="text-center mt-5 mb-3 text-muted position-relative" style="z-index: 10;">
+    <small>&copy; {{ current_year or 2026 }} Admissions System</small>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

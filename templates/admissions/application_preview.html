@@ -1,0 +1,144 @@
+{% extends "admissions/base_admission.html" %}
+{% block title %}Application Preview{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h3 class="mb-3">Application Preview</h3>
+    <p class="text-muted">Please review all the information you provided before proceeding to the declaration and final submission.</p>
+
+    <!-- PERSONAL INFORMATION -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <strong>Personal Information</strong>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6"><strong>Title:</strong> {{ application.title or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Surname:</strong> {{ application.surname or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Other Names:</strong> {{ application.other_names or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Gender:</strong> {{ application.gender or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Date of Birth:</strong> {{ application.dob.strftime('%Y-%m-%d') if application.dob else 'N/A' }}</div>
+                <div class="col-md-6"><strong>Nationality:</strong> {{ application.nationality or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Marital Status:</strong> {{ application.marital_status or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Home Region:</strong> {{ application.home_region or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Email:</strong> {{ application.email or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Phone:</strong> {{ application.phone or 'N/A' }}</div>
+                <div class="col-md-12"><strong>Postal Address:</strong> {{ application.postal_address or 'N/A' }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GUARDIAN INFORMATION -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <strong>Guardian Information</strong>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6"><strong>Name:</strong> {{ application.guardian_name or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Relation:</strong> {{ application.guardian_relation or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Occupation:</strong> {{ application.guardian_occupation or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Phone:</strong> {{ application.guardian_phone or 'N/A' }}</div>
+                <div class="col-md-6"><strong>Email:</strong> {{ application.guardian_email or 'N/A' }}</div>
+                <div class="col-md-12"><strong>Address:</strong> {{ application.guardian_address or 'N/A' }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROGRAMME CHOICE -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <strong>Programme Choice</strong>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6"><strong>First Choice:</strong> {{ application.first_choice or 'N/A' }} ({{ application.first_stream or 'N/A' }})</div>
+                <div class="col-md-6"><strong>Second Choice:</strong> {{ application.second_choice or 'N/A' }} ({{ application.second_stream or 'N/A' }})</div>
+                <div class="col-md-6"><strong>Third Choice:</strong> {{ application.third_choice or 'N/A' }} ({{ application.third_stream or 'N/A' }})</div>
+                <div class="col-md-6"><strong>Fourth Choice:</strong> {{ application.fourth_choice or 'N/A' }} ({{ application.fourth_stream or 'N/A' }})</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDUCATION & EXAM RESULTS -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <strong>Education & Exam Results</strong>
+        </div>
+        <div class="card-body">
+            {% if application.exam_results %}
+            <table class="table table-bordered table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>Subject</th>
+                        <th>Grade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in application.exam_results %}
+                    <tr>
+                        <td>{{ result.subject }}</td>
+                        <td>{{ result.grade }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted">No exam results provided yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- PASSPORT PHOTO -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <strong>Passport Photo</strong>
+        </div>
+        <div class="card-body text-center">
+            {% set photo = application.documents | selectattr("document_type", "equalto", "photo") | first %}
+
+            {% if photo %}
+                <img 
+                    src="{{ url_for('static', filename=photo.file_path) }}"
+                    class="img-fluid rounded shadow"
+                    style="max-width:180px;"
+                    alt="Passport Photo"
+                >
+            {% else %}
+                <p class="text-muted">No passport photo uploaded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- APPLICATION STATUS -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <strong>Application Status</strong>
+        </div>
+        <div class="card-body">
+            <p><strong>Status:</strong> {{ application.status.capitalize() }}</p>
+            <p><strong>Submitted At:</strong> {{ application.submitted_at.strftime('%Y-%m-%d %H:%M') if application.submitted_at else 'Not Submitted Yet' }}</p>
+        </div>
+    </div>
+
+    <!-- ACTION BUTTONS -->
+<div class="d-flex justify-content-between mb-5">
+    <a href="{{ url_for('admissions.application_step', step=1) }}" class="btn btn-outline-secondary">Edit Application</a>
+    
+    {% if application.status.lower() == 'approved' %}
+        <button class="btn btn-success" disabled>Proceed to Declaration</button>
+    {% else %}
+        <a href="{{ url_for('admissions.declaration') }}" class="btn btn-success">Proceed to Declaration</a>
+    {% endif %}
+</div>
+
+</div>
+<style>
+    img:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 20px rgba(0,0,0,0.35);
+    }
+</style>
+
+{% endblock %}

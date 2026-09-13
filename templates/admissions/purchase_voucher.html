@@ -1,0 +1,73 @@
+{% extends "admissions/base_admission.html" %}
+
+{% block title %}Purchase Voucher | Admissions{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <h3 class="fw-bold mb-4">Purchase Admission Voucher</h3>
+
+    <div class="row g-4">
+
+        <!-- Left Column: Form -->
+        <div class="col-md-6">
+            <form method="POST" class="p-4 border rounded shadow-sm bg-white">
+                {{ form.hidden_tag() }}
+
+                <div class="mb-3">
+                    {{ form.full_name.label(class="form-label fw-semibold") }}
+                    {{ form.full_name(class="form-control shadow-sm", placeholder="John Doe") }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.email.label(class="form-label fw-semibold") }}
+                    {{ form.email(class="form-control shadow-sm", placeholder="example@mail.com") }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.phone.label(class="form-label fw-semibold") }}
+                    {{ form.phone(class="form-control shadow-sm", placeholder="+233 24 123 4567") }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.amount.label(class="form-label fw-semibold") }}
+                    {{ form.amount(class="form-control shadow-sm", placeholder="50") }}
+                </div>
+
+                {{ form.submit(class="btn btn-success px-4 mt-2") }}
+            </form>
+        </div>
+
+        <!-- Right Column: Process Details -->
+        <div class="col-md-6">
+            <div class="p-4 border rounded shadow-sm bg-light">
+                <h5 class="fw-bold mb-3">How the Voucher Process Works</h5>
+                <ol class="mb-3" style="line-height:1.7;">
+                    <li>Fill in your personal details in the form on the left and select the payment amount.</li>
+                    <li>Click <strong>Proceed to Payment</strong> to pay using the available online payment methods.</li>
+                    <li>After successful payment, a voucher PIN will be sent to your email and phone number.</li>
+                    <li>Return to the <strong>Voucher Authentication</strong> page and enter your PIN and Serial Number to access the application form.</li>
+                    <li>Each voucher is valid for <strong>one applicant only</strong> and must be entered exactly as received.</li>
+                </ol>
+
+                <h6 class="fw-semibold mt-3">Important Notes:</h6>
+                <ul class="small mb-0" style="line-height:1.6;">
+                    <li>Keep your voucher details safe; they cannot be reused or transferred.</li>
+                    <li>If you encounter issues, contact the Admissions Office immediately.</li>
+                    <li>Payments are processed securely online.</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Optional: add custom styles for clarity -->
+<style>
+form input.form-control {
+    border-radius: 8px;
+}
+form .btn-success {
+    border-radius: 8px;
+}
+</style>
+{% endblock %}

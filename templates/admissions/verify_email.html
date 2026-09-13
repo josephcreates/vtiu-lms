@@ -1,0 +1,39 @@
+{% extends "admissions/base_admission.html" %}
+
+{% block title %}Email Verification{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5 col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header text-center fw-bold">
+                    Verify Your Email
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted text-center mb-3">
+                        Please enter the verification code sent to your email to continue.
+                    </p>
+                    <form method="POST">
+                        <!-- Hidden CSRF token -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <label for="code" class="form-label">Verification Code</label>
+                            <input type="text" name="code" id="code" class="form-control" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mt-3">
+                            Verify Email
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <p class="text-center small text-muted mt-3">
+                Didn't receive the code? Check your spam folder or 
+                <a href="{{ url_for('admissions.resend_verification') }}">resend</a>.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

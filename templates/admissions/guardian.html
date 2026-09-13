@@ -1,0 +1,169 @@
+{% extends "admissions/base_admission.html" %}
+
+{% block title %}Guardian Information | Admissions{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+
+    <!-- Page Header -->
+    <div class="mb-4">
+        <h3 class="fw-bold">Guardian / Sponsor Information</h3>
+        <p class="text-muted">
+            Please provide details of your parent, guardian, or sponsor for official correspondence.
+        </p>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="mb-4">
+        <ul class="progressbar">
+            <li class="active">Personal Info</li>
+            <li class="active">Guardian</li>
+            <li>Programme</li>
+            <li>Education</li>
+            <li>Exams</li>
+            <li>Upload</li>
+            <li>Declaration</li>
+        </ul>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white fw-bold">
+            Guardian / Sponsor Details
+        </div>
+
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+
+                <div class="row g-3">
+
+                    <!-- Guardian Name -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Full Name</label>
+                        {{ form.name(class="form-control", placeholder="Guardian's full name") }}
+                        {% for error in form.name.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Relationship -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Relationship to Applicant</label>
+                        {{ form.relation(class="form-control", placeholder="e.g. Father, Mother, Uncle") }}
+                        {% for error in form.relation.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Occupation -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Occupation</label>
+                        {{ form.occupation(class="form-control", placeholder="Occupation") }}
+                        {% for error in form.occupation.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Phone -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Phone Number</label>
+                        {{ form.phone(class="form-control", placeholder="e.g. 024xxxxxxx") }}
+                        {% for error in form.phone.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Email -->
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Email Address (Optional)</label>
+                        {{ form.email(class="form-control", placeholder="guardian@email.com") }}
+                        {% for error in form.email.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Address -->
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Residential Address</label>
+                        {{ form.address(class="form-control", rows="3", placeholder="Full residential address") }}
+                        {% for error in form.address.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('admissions.personal_info') }}"
+                       class="btn btn-outline-secondary">
+                        Back
+                    </a>
+
+                    <button type="submit" class="btn btn-primary">
+                        Save & Continue
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<!-- Progress Bar Styling -->
+<style>
+.progressbar {
+    display: flex;
+    justify-content: space-between;
+    list-style: none;
+    counter-reset: step;
+    padding-left: 0;
+}
+.progressbar li {
+    text-align: center;
+    position: relative;
+    flex: 1;
+    font-size: 14px;
+    color: #6c757d;
+}
+.progressbar li::before {
+    content: counter(step);
+    counter-increment: step;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    border: 2px solid #6c757d;
+    display: block;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    background: #fff;
+}
+.progressbar li::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: #6c757d;
+    top: 15px;
+    left: -50%;
+    z-index: -1;
+}
+.progressbar li:first-child::after {
+    content: none;
+}
+.progressbar li.active {
+    color: #0d6efd;
+    font-weight: bold;
+}
+.progressbar li.active::before {
+    border-color: #0d6efd;
+    background: #0d6efd;
+    color: #fff;
+}
+.progressbar li.active::after {
+    background: #0d6efd;
+}
+</style>
+{% endblock %}

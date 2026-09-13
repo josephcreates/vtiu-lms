@@ -1,0 +1,247 @@
+{% extends "admissions/base_admission.html" %}
+
+{% block extra_css %}
+<style>
+/* Ensure full-height pages */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+/* Fullscreen fixed background */
+.bg-full {
+  position: fixed;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  background-attachment: fixed;
+  z-index: 0;
+  pointer-events: none;
+  transition: background-image 1s ease-in-out;
+}
+
+/* Overlay */
+.bg-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Main container */
+.admissions-container {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  color: #fff;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Cards readability */
+section.bg-light, section.bg-white {
+  background-color: rgba(255,255,255,0.95) !important;
+  color: #000 !important;
+  border-radius: 10px;
+  padding: 2rem 1rem;
+  margin-bottom: 2rem;
+}
+
+/* Hero tweaks */
+.admissions-hero {
+  padding: 1rem 0;
+  text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
+}
+
+/* Buttons */
+.admissions-hero .btn-warning {
+  background-color: #ffd60a;
+  border: none;
+  color: #000;
+}
+.admissions-hero .btn-warning:hover { background-color: #ffc300; }
+
+/* Cards */
+.card { background-color: rgba(255,255,255,0.97); }
+
+/* Lists */
+ol, ul { padding-left: 1.25rem; }
+
+/* Responsive typography */
+@media (max-width: 1200px) { 
+  .admissions-hero h1 { font-size: 2.5rem; }
+  .admissions-hero p { font-size: 1.1rem; }
+}
+
+@media (max-width: 992px) { 
+  .admissions-hero h1 { font-size: 2.2rem; }
+  .admissions-hero p { font-size: 1rem; }
+}
+
+@media (max-width: 768px) { 
+  .admissions-hero h1 { font-size: 2rem; }
+  .admissions-hero p { font-size: 0.95rem; }
+  .admissions-hero .btn { font-size: 0.95rem; padding: 0.45rem 1rem; }
+  .card h6 { font-size: 1rem; }
+  .card p { font-size: 0.9rem; }
+}
+
+@media (max-width: 576px) { 
+  .admissions-hero h1 { font-size: 1.5rem; }
+  .admissions-hero p { font-size: 0.85rem; }
+  .admissions-hero .btn { font-size: 0.85rem; padding: 0.4rem 0.9rem; }
+  .card h6 { font-size: 0.9rem; }
+  .card p { font-size: 0.85rem; }
+}
+
+@media (max-width: 400px) { 
+  .admissions-hero h1 { font-size: 1.3rem; }
+  .admissions-hero p { font-size: 0.8rem; }
+  .admissions-hero .btn { font-size: 0.8rem; padding: 0.35rem 0.8rem; }
+  .card h6 { font-size: 0.85rem; }
+  .card p { font-size: 0.8rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Background layers (must be outside .admissions-container so they cover whole viewport) -->
+<div class="bg-full" aria-hidden="true"></div>
+<div class="bg-overlay" aria-hidden="true"></div>
+
+<div class="admissions-container">
+
+    <!-- HERO -->
+    <section class="admissions-hero text-center text-lg-start">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-7 col-12 text-center text-lg-start mb-3 mb-lg-0">
+                    <h1 class="fw-bold display-6 mb-3">Welcome to VOCATIONAL & TECHNICAL INSPIRED UNIVERSITY Admissions Portal</h1>
+                    <p class="mb-4">
+                        Purchase an e-voucher, complete your application online,
+                        and track your admission status for programmes offered by the University.
+                    </p>
+
+                    <a href="{{ url_for('admissions.register') }}" class="btn btn-warning fw-semibold px-4 me-2 mb-2">Apply Now</a>
+                    <a href="#how-to-apply" class="btn btn-outline-light px-4 mb-2">How to Apply</a>
+                </div>
+
+                <div class="col-lg-5 col-12 text-center">
+                    <i class="fas fa-university fa-7x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- QUICK STEPS -->
+    <section class="bg-light">
+        <div class="container">
+            <div class="row text-center g-3">
+    <div class="col-12 col-sm-6 col-md-4 col-lg-4 col-xl-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-3">
+                <i class="fas fa-user-graduate text-primary mb-2"></i>
+                <h6 class="fw-bold mb-1">Create Applicant Account</h6>
+                <p class="text-muted small mb-0">Register with a valid email address to manage and track your application.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-md-4 col-lg-4 col-xl-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-3">
+                <i class="fas fa-file-invoice-dollar text-warning mb-2"></i>
+                <h6 class="fw-bold mb-1">Purchase E-Voucher</h6>
+                <p class="text-muted small mb-0">Obtain an application PIN and serial through approved payment channels.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-md-4 col-lg-4 col-xl-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-3">
+                <i class="fas fa-upload text-success mb-2"></i>
+                <h6 class="fw-bold mb-1">Submit Application</h6>
+                <p class="text-muted small mb-0">Complete the form, upload documents and submit before the deadline.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+        </div>
+    </section>
+
+    <!-- HOW TO APPLY -->
+    <section id="how-to-apply" class="bg-white">
+        <div class="container">
+            <h5 class="fw-bold text-primary mb-3">How to Apply</h5>
+            <ol class="small lh-base mb-0">
+                <li>Purchase an official application e-voucher.</li>
+                <li>Register and log in using your voucher PIN and serial.</li>
+                <li>Select entry mode and preferred programme.</li>
+                <li>Upload all required documents.</li>
+                <li>Review and submit before the deadline.</li>
+                <li>Print application summary if required.</li>
+                <li>Check the portal regularly for updates.</li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- REQUIREMENTS -->
+    <section class="bg-light">
+        <div class="container">
+            <h6 class="fw-bold text-primary mb-2">Required Documents & Notices</h6>
+            <ul class="small text-muted lh-base">
+                <li>Academic results or transcripts</li>
+                <li>Certified certificates (HND / Degree)</li>
+                <li>Passport photograph and valid ID</li>
+                <li>Programme-specific documents</li>
+                <li>False declarations lead to disqualification</li>
+            </ul>
+
+            <div class="alert alert-warning py-2 small mb-0">
+                Incomplete applications will not be processed. Applicants must adhere strictly to deadlines.
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="bg-dark text-white text-center py-4">
+        <div class="container">
+            <h6 class="fw-bold mb-2">Ready to Apply?</h6>
+            <p class="small text-muted mb-3">Begin your application by purchasing an e-voucher today.</p>
+            <a href="{{ url_for('admissions.register') }}" class="btn btn-warning fw-semibold px-4">Start Application</a>
+        </div>
+    </section>
+
+</div> <!-- /admissions-container -->
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const bgDiv = document.querySelector('.bg-full');
+
+    const images = [
+      "{{ url_for('admissions.static', filename='admission_homepage.jpg') }}",
+      "{{ url_for('admissions.static', filename='admission_homepage2.jpg') }}"
+    ];
+
+    let index = 0;
+
+    // Preload images
+    images.forEach(src => {
+      const img = new Image();
+      img.src = src;
+    });
+
+    function changeBackground() {
+      index = (index + 1) % images.length;
+      bgDiv.style.backgroundImage = `url('${images[index]}')`;
+    }
+
+    // Change every 15 seconds
+    setInterval(changeBackground, 15000);
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends "admissions/base_admission.html" %}
+
+{% block title %}Exam Results | Admissions{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+
+    <!-- Page Header -->
+    <div class="mb-4">
+        <h3 class="fw-bold">Exam Results</h3>
+        <p class="text-muted">
+            Add all subjects you took and their corresponding grades. You can add or remove rows dynamically.
+        </p>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="mb-4">
+        <ul class="progressbar">
+            <li class="active">Personal Info</li>
+            <li class="active">Guardian</li>
+            <li class="active">Programme</li>
+            <li class="active">Education</li>
+            <li class="active">Exams</li>
+            <li class="active">Upload</li>
+            <li>Declaration</li>
+        </ul>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white fw-bold">
+            Add Exam Results
+        </div>
+
+        <div class="card-body">
+            <form method="POST" id="examResultsForm">
+                {{ form.hidden_tag() }}
+
+                <div id="resultsContainer">
+                    {% if application.exam_results %}
+                        {% for result in application.exam_results %}
+                        <div class="row g-3 mb-3 exam-row">
+                            <div class="col-md-5">
+                                <input type="text" name="subject[]" class="form-control" 
+                                       value="{{ result.subject }}" required>
+                            </div>
+                            <div class="col-md-5">
+                                <select name="grade[]" class="form-control" required>
+                                    {% for g in ['A1','B2','B3','C4','C5','C6','D7','E8','F9'] %}
+                                        <option value="{{ g }}" {% if g == result.grade %}selected{% endif %}>
+                                            {{ g }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-danger remove-row w-100">Remove</button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="row g-3 mb-3 exam-row">
+                            <div class="col-md-5">
+                                <input type="text" name="subject[]" class="form-control" 
+                                       placeholder="Subject e.g. Mathematics" required>
+                            </div>
+                            <div class="col-md-5">
+                                <select name="grade[]" class="form-control" required>
+                                    {% for g in ['A1','B2','B3','C4','C5','C6','D7','E8','F9'] %}
+                                        <option value="{{ g }}">{{ g }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-danger remove-row w-100">Remove</button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Add Row Button -->
+                <div class="mb-3">
+                    <button type="button" id="addRowBtn" class="btn btn-secondary">
+                        + Add Another Result
+                    </button>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('admissions.exam_info') }}" class="btn btn-outline-secondary">
+                        Back
+                    </a>
+                    <button type="submit" class="btn btn-success">
+                        Save & Continue
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Bar Styling (same as before) -->
+<style>
+.progressbar {
+    display: flex;
+    justify-content: space-between;
+    list-style: none;
+    counter-reset: step;
+    padding-left: 0;
+}
+.progressbar li {
+    text-align: center;
+    position: relative;
+    flex: 1;
+    font-size: 14px;
+    color: #6c757d;
+}
+.progressbar li::before {
+    content: counter(step);
+    counter-increment: step;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    border: 2px solid #6c757d;
+    display: block;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    background: #fff;
+}
+.progressbar li::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: #6c757d;
+    top: 15px;
+    left: -50%;
+    z-index: -1;
+}
+.progressbar li:first-child::after {
+    content: none;
+}
+.progressbar li.active {
+    color: #0d6efd;
+    font-weight: bold;
+}
+.progressbar li.active::before {
+    border-color: #0d6efd;
+    background: #0d6efd;
+    color: #fff;
+}
+.progressbar li.active::after {
+    background: #0d6efd;
+}
+</style>
+
+<!-- JS for dynamic add/remove rows -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addRowBtn = document.getElementById('addRowBtn');
+    const container = document.getElementById('resultsContainer');
+
+    addRowBtn.addEventListener('click', function() {
+        const template = document.querySelector('.exam-row').cloneNode(true);
+        template.querySelectorAll('input').forEach(input => input.value = '');
+        template.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+        container.appendChild(template);
+    });
+
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-row')) {
+            const rows = document.querySelectorAll('.exam-row');
+            if (rows.length > 1) {
+                e.target.closest('.exam-row').remove();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

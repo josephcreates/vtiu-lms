@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Application PDF</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; }
+        h2 { text-align: center; }
+        .section { margin-bottom: 20px; }
+        .field { margin-bottom: 5px; }
+        .label { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Application Form</h2>
+
+    <div class="section">
+        <h3>Personal Info</h3>
+        <div class="field"><span class="label">Name:</span> {{ application.surname }} {{ application.other_names }}</div>
+        <div class="field"><span class="label">Gender:</span> {{ application.gender }}</div>
+        <div class="field"><span class="label">Date of Birth:</span> {{ application.dob }}</div>
+        <div class="field"><span class="label">Nationality:</span> {{ application.nationality }}</div>
+        <div class="field"><span class="label">Email:</span> {{ application.email }}</div>
+        <div class="field"><span class="label">Phone:</span> {{ application.phone }}</div>
+    </div>
+
+    <div class="section">
+        <h3>Guardian Info</h3>
+        <div class="field"><span class="label">Name:</span> {{ application.guardian_name }}</div>
+        <div class="field"><span class="label">Relation:</span> {{ application.guardian_relation }}</div>
+        <div class="field"><span class="label">Phone:</span> {{ application.guardian_phone }}</div>
+        <div class="field"><span class="label">Email:</span> {{ application.guardian_email }}</div>
+    </div>
+
+    <div class="section">
+        <h3>Programme Choices</h3>
+        <div class="field">1. {{ application.first_choice }} - {{ application.first_stream }}</div>
+        <div class="field">2. {{ application.second_choice }} - {{ application.second_stream }}</div>
+        <div class="field">3. {{ application.third_choice }} - {{ application.third_stream }}</div>
+        <div class="field">4. {{ application.fourth_choice }} - {{ application.fourth_stream }}</div>
+    </div>
+
+    <div class="section">
+        <h3>Declaration</h3>
+        <div>I declare that all information provided is true and complete.</div>
+    </div>
+</body>
+</html>
