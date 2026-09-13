@@ -1,0 +1,67 @@
+{% extends "admissions/base_admission.html" %}
+
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 85vh;">
+
+    <div class="card shadow-lg border-0" style="max-width: 420px; width:100%; border-radius:15px;">
+        <div class="card-body p-4">
+
+            <!-- Logo / Title -->
+            <div class="text-center mb-4">
+                <h3 class="fw-bold text-primary">Applicant Portal</h3>
+                <p class="text-muted small">Sign in to continue your application</p>
+            </div>
+
+            <form method="POST">
+                {{ form.hidden_tag() }}
+
+                <!-- Email -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Email Address</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light">
+                            <i class="bi bi-envelope"></i>
+                        </span>
+                        {{ form.email(class="form-control", placeholder="Enter your email") }}
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light">
+                            <i class="bi bi-lock"></i>
+                        </span>
+                        {{ form.password(class="form-control", id="passwordField", placeholder="Enter your password") }}
+                        <span class="input-group-text bg-light" style="cursor:pointer;" onclick="togglePassword()">
+                            <i class="bi bi-eye"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Button -->
+                <div class="d-grid mt-4">
+                    {{ form.submit(class="btn btn-success btn-lg shadow-sm") }}
+                </div>
+
+                <!-- Extra Links -->
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('admissions.register') }}" class="small">Create Account</a>
+                    <span class="mx-2 text-muted">|</span>
+                    <a href="#" class="small text-muted">Forgot Password?</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Password Toggle Script -->
+<script>
+function togglePassword() {
+    const field = document.getElementById("passwordField");
+    field.type = field.type === "password" ? "text" : "password";
+}
+</script>
+
+{% endblock %}
