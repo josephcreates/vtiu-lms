@@ -29,12 +29,13 @@ def start_redis_listener(app):
                 try:
                     data = json.loads(message['data'])
                     # Broadcast to Web clients via SocketIO
+                    # Map Ktor's flat ChatMessageApi to Flask's expected web format
                     socketio.emit('new_message', {
                         'conversation_id': 0, 
                         'message': {
-                            'sender_name': data.get('sender_name', 'Mobile User'),
-                            'content': data.get('message'),
-                            'created_at': data.get('timestamp')
+                            'sender_name': data.get('sender_name') or data.get('sender_id') or 'Mobile User',
+                            'content': data.get('message', ''),
+                            'created_at': data.get('timestamp') or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         }
                     }, namespace='/')
                 except Exception as e:

@@ -2106,28 +2106,6 @@ def meetings():
     return render_template('teacher/meetings_list.html', meetings=meetings)
 
 
-# -------------------------
-# Add new meeting
-# -------------------------
-# -------------------------
-# Agora meeting helpers
-# -------------------------
-import requests
-from flask import current_app
-from requests.auth import HTTPBasicAuth
-
-
-def create_agora_channel():
-    """Create a unique eight-character random alphanumeric Room ID."""
-    import secrets
-    import string
-    alphabet = string.ascii_uppercase + string.digits
-    while True:
-        room_code = ''.join(secrets.choice(alphabet) for _ in range(8))
-        if not Meeting.query.filter_by(meeting_code=room_code).first():
-            return room_code
-
-
 # Legacy Zoom API helpers are intentionally disabled. Restore from git history
 # only if a future rollback is required.
 # def get_zoom_access_token():
@@ -2157,7 +2135,7 @@ def add_meeting():
                 description=form.description.data,
                 host_id=current_user.id,
                 course_id=form.course_id.data,
-                meeting_code=create_agora_channel(),
+                meeting_code=f'meeting-{uuid.uuid4().hex}',
                 scheduled_start=form.scheduled_start.data,
                 scheduled_end=form.scheduled_end.data,
             )

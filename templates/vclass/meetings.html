@@ -78,7 +78,7 @@
         <!-- Action -->
         <div class="card-footer bg-white border-0">
           {% if is_live %}
-            <a href="{{ url_for('vclass.join_meeting_by_code') }}"
+            <a href="{{ url_for('vclass.join_meeting', meeting_id=m.id) }}"
                class="btn btn-{{ course_color }} w-100">
               Join Live Class
             </a>
@@ -130,5 +130,9 @@ function updateCountdowns() {
 
 setInterval(updateCountdowns, 1000);
 updateCountdowns();
+
+if (!document.querySelector('.meeting-card')) {
+  window.setTimeout(() => window.location.reload(), 15000);
+}
 </script>
 {% endblock %}

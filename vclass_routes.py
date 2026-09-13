@@ -27,6 +27,26 @@ def allowed_file(filename):
     return os.path.splitext(filename)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def get_student_course_ids(student):
+    """Return courses the student may access through registration or cohort."""
+    course_ids = {
+        registration.course_id
+        for registration in StudentCourseRegistration.query.filter_by(
+            student_id=student.id
+        ).all()
+    }
+
+    profile = StudentProfile.query.filter_by(user_id=student.user_id).first()
+    if profile and profile.current_programme and profile.programme_level:
+        cohort_course_ids = db.session.query(Course.id).filter_by(
+            programme_name=profile.current_programme,
+            programme_level=profile.programme_level,
+        ).all()
+        course_ids.update(course_id for course_id, in cohort_course_ids)
+
+    return course_ids
+
+
 def ensure_meeting_class_conversation(meeting):
     """Ensure a persistent class conversation exists for the meeting and includes all enrolled students."""
     conv = None
@@ -1114,10 +1134,13 @@ def student_meetings():
         flash("Please complete your student profile first.", "warning")
         return redirect(url_for('student.dashboard'))
 
-    # 📚 Get registered course IDs
-    course_ids = [
-        reg.course_id for reg in current_user.registered_courses
-    ]
+    # 📚 Include explicit registrations and the student's programme cohort.
+    course_ids = get_student_course_ids(current_user)
+    current_app.logger.info(
+        'Student %s can access %d course(s) for live classes',
+        current_user.user_id,
+        len(course_ids),
+    )
 
     # 🗓️ Load meetings (with Course preloaded)
     if course_ids:
@@ -1140,90 +1163,6 @@ def student_meetings():
     )
 
 
-@vclass_bp.route('/join-by-code', methods=['GET', 'POST'])
-@login_required
-def join_meeting_by_code():
-    """Resolve a teacher-shared room ID before entering the tokenized Agora room."""
-    if current_user.role != 'student':
-        abort(403)
-
-    room_code = (request.form.get('room_code') if request.method == 'POST' else request.args.get('code', ''))
-    room_code = (room_code or '').strip().upper()
-    if not room_code:
-        return render_template('vclass/join_by_code.html')
-
-    meeting = Meeting.query.filter_by(meeting_code=room_code).first()
-    if not meeting:
-        flash('That room code is not valid. Ask the teacher to share it again.', 'danger')
-        return render_template('vclass/join_by_code.html', room_code=room_code), 404
-
-    registered = StudentCourseRegistration.query.filter_by(
-        student_id=current_user.id,
-        course_id=meeting.course_id,
-    ).first()
-    if not registered:
-        abort(403)
-
-    now = datetime.utcnow()
-    if meeting.scheduled_start and meeting.scheduled_end and not (
-        meeting.scheduled_start <= now <= meeting.scheduled_end
-    ):
-        flash('This live class is not currently open.', 'warning')
-        return redirect(url_for('vclass.student_meetings'))
-
-    return redirect(url_for('vclass.join_meeting', meeting_id=meeting.id))
-
-
-@vclass_bp.route('/api/meeting/join-by-code', methods=['GET'])
-@login_required
-def api_join_meeting_by_code():
-    """Return tokenized Agora join data for an authenticated mobile client."""
-    if current_user.role != 'student':
-        return jsonify({'error': 'Only students can use this endpoint.'}), 403
-
-    room_code = (request.args.get('room_code') or '').strip().upper()
-    meeting = Meeting.query.filter_by(meeting_code=room_code).first() if room_code else None
-    if not meeting:
-        return jsonify({'error': 'Invalid room code.'}), 404
-
-    registered = StudentCourseRegistration.query.filter_by(
-        student_id=current_user.id,
-        course_id=meeting.course_id,
-    ).first()
-    if not registered:
-        return jsonify({'error': 'You are not registered for this class.'}), 403
-
-    now = datetime.utcnow()
-    if meeting.scheduled_start and meeting.scheduled_end and not (
-        meeting.scheduled_start <= now <= meeting.scheduled_end
-    ):
-        return jsonify({'error': 'This live class is not currently open.'}), 409
-
-    try:
-        token = build_rtc_token(
-            current_app.config.get('AGORA_APP_ID'),
-            current_app.config.get('AGORA_APP_CERTIFICATE'),
-            meeting.meeting_code,
-            current_user.id,
-            'audience',
-            expires_in=3600,
-        )
-    except RuntimeError as exc:
-        current_app.logger.error('Mobile Agora token error: %s', exc)
-        return jsonify({'error': 'Live class service is unavailable.'}), 503
-
-    return jsonify({
-        'app_id': current_app.config.get('AGORA_APP_ID'),
-        'channel': meeting.meeting_code,
-        'token': token,
-        'uid': current_user.id,
-        'role': 'audience',
-        'channel_profile': current_app.config.get('AGORA_CHANNEL_PROFILE', 'live'),
-        'meeting_id': meeting.id,
-        'title': meeting.title,
-    })
-
-
 @vclass_bp.route('/meeting/<int:meeting_id>')
 @login_required
 def join_meeting(meeting_id):
@@ -1235,11 +1174,7 @@ def join_meeting(meeting_id):
             abort(403)
         role = 'host'
     elif current_user.role == 'student':
-        registered_course_ids = {
-            registration.course_id
-            for registration in current_user.registered_courses
-        }
-        if meeting.course_id not in registered_course_ids:
+        if meeting.course_id not in get_student_course_ids(current_user):
             abort(403)
         role = 'audience'
     else:

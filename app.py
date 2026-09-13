@@ -21,6 +21,7 @@ from flask_login import LoginManager, login_required, logout_user, current_user
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
 from flask_sock import Sock
+from sqlalchemy import text
 from utils.extensions import db, mail, socketio
 from config import Config
 from utils.academic_year import configured_academic_year
@@ -56,6 +57,20 @@ else:
     app.logger.info('SocketIO Redis message queue disabled; using local process events')
 socketio.init_app(app, **socketio_options)
 csrf = CSRFProtect(app)
+
+
+@app.route('/health', methods=['GET'])
+@app.route('/healthz', methods=['GET'])
+def health_check():
+    """Return the service health without requiring authentication."""
+    try:
+        db.session.execute(text('SELECT 1'))
+        db.session.remove()
+        return jsonify({'status': 'ok'}), 200
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Health check database probe failed')
+        return jsonify({'status': 'error'}), 503
 
 
 @app.route('/api/paystack/webhook', methods=['POST'])
