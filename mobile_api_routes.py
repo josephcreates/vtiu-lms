@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, current_app
 from flask_login import login_required, current_user
 from models import db, User, TeacherProfile, StudentProfile, StudentCourseRegistration, Course, Meeting, CourseMaterial, Assignment, AssignmentSubmission, Quiz, StudentQuizSubmission, Question, Option, StudentAnswer, QuizAttempt, Recording, TeacherCourseAssignment, Message, Conversation, ConversationParticipant, SchoolSettings
 from utils.agora import build_rtc_token
+from utils.livekit import build_livekit_token
 from datetime import datetime
 import json
 
@@ -335,7 +336,12 @@ def get_chat_history(receiver_id):
 @mobile_api_bp.route('/livekit/token', methods=['POST'])
 @login_required
 def create_livekit_token():
-    """Create a LiveKit token for the authenticated meeting participant."""
+    """Create a LiveKit token for the authenticated meeting participant.
+
+    Contract is deliberately standardized with the web join flow:
+    meetingId is the payload key, roomName is the published meeting_code,
+    and the role is supplied in the same publisher/audience vocabulary.
+    """
     data = request.get_json(silent=True) or {}
     meeting_id = data.get('meetingId')
     if not meeting_id:
@@ -351,7 +357,7 @@ def create_livekit_token():
     if current_user.role == 'teacher':
         if meeting.host_id != current_user.id:
             return jsonify({'message': 'You are not the meeting host'}), 403
-        is_publisher = True
+        role = 'publisher'
     elif current_user.role == 'student':
         registered = StudentCourseRegistration.query.filter_by(
             student_id=current_user.id,
@@ -359,27 +365,34 @@ def create_livekit_token():
         ).first()
         if not registered:
             return jsonify({'message': 'You are not registered for this class'}), 403
-        is_publisher = False
+        role = 'audience'
     else:
         return jsonify({'message': 'Unsupported user role'}), 403
 
     try:
-        from utils.livekit_utils import build_livekit_token
-        import os
         token = build_livekit_token(
+            current_app.config.get('LIVEKIT_API_KEY'),
+            current_app.config.get('LIVEKIT_API_SECRET'),
             meeting.meeting_code,
             str(current_user.id),
             current_user.full_name,
-            is_publisher,
+            role,
         )
-        
+
         return jsonify({
-            "token": token,
-            "serverUrl": os.environ.get('LIVEKIT_URL', '')
+            'token': token,
+            'serverUrl': current_app.config.get('LIVEKIT_URL', ''),
+            'meetingId': meeting.id,
+            'roomName': meeting.meeting_code,
+            'role': role,
+            'displayName': current_user.full_name,
         })
-    except Exception as e:
-        current_app.logger.error(f"LiveKit token error: {e}")
-        return jsonify({'message': str(e)}), 500
+    except RuntimeError as exc:
+        current_app.logger.error('LiveKit token error: %s', exc)
+        return jsonify({'message': str(exc)}), 503
+    except Exception as exc:
+        current_app.logger.error('LiveKit token error: %s', exc)
+        return jsonify({'message': str(exc)}), 500
 
 # --- AGORA & WHITEBOARD ---
 @mobile_api_bp.route('/vclass/agora/token/<channel_name>/<int:user_numeric_id>', methods=['GET'])
