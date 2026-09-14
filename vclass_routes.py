@@ -1342,6 +1342,16 @@ def join_meeting(meeting_id):
 
     class_conv = ensure_meeting_class_conversation(meeting)
 
+    # Notify students that class is starting if the teacher is joining
+    if role == 'host':
+        try:
+            from utils.notification_engine import notify_live_class_started
+            # Simple check: only notify if it's the first time or recently started
+            # For now, we'll just send it when the teacher joins
+            notify_live_class_started(meeting, send_email=True)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to send live class start notification: {e}")
+
     return render_template(
         'vclass/livekit_room.html',
         meeting=meeting,
