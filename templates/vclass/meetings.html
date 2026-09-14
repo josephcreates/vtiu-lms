@@ -42,12 +42,12 @@
           <div class="d-flex align-items-center mb-3">
             <div class="rounded-circle d-flex align-items-center justify-content-center me-3 bg-{{ avatar_color }} text-white fw-bold"
                  style="width:42px; height:42px;">
-              {{ m.teacher.full_name[:1] if m.teacher else 'T' }}
+              {{ m.host.full_name[:1] if m.host else 'T' }}
             </div>
             <div>
               <div class="fw-semibold">{{ m.title }}</div>
               <small class="text-muted">
-                {{ m.teacher.full_name if m.teacher else "Instructor" }}
+                {{ m.host.full_name if m.host else "Instructor" }}
               </small>
             </div>
           </div>
@@ -130,9 +130,5 @@ function updateCountdowns() {
 
 setInterval(updateCountdowns, 1000);
 updateCountdowns();
-
-if (!document.querySelector('.meeting-card')) {
-  window.setTimeout(() => window.location.reload(), 15000);
-}
 </script>
 {% endblock %}

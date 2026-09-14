@@ -451,11 +451,10 @@ def approve_payment_route(txn_id):
         ).first()
 
         if balance:
-            balance.balance = max(0, balance.balance - txn.amount)
-            if balance.balance <= 0:
-                balance.status = 'paid'
-            else:
-                balance.status = 'partial'
+            balance.amount_paid = (balance.amount_paid or 0) + txn.amount
+            balance.is_paid = balance.amount_paid >= balance.amount_due
+            if balance.is_paid:
+                balance.paid_on = datetime.utcnow()
 
         db.session.commit()
         flash(f"✓ Payment of GHS {txn.amount:.2f} approved.", "success")
@@ -649,9 +648,14 @@ def record_payment():
         if not method:
             return jsonify({'error': 'Payment method required'}), 400
         
-        # Create payment record
+        # Resolve student correctly for both tables
+        student = User.query.filter((User.id == student_id) | (User.user_id == student_id)).first()
+        if not student:
+            return jsonify({'error': 'Student not found'}), 404
+            
+        # Create payment record (uses numeric user.id)
         payment = StudentFeeTransaction(
-            student_id=student_id,
+            student_id=student.id,
             amount=amount,
             payment_method=method,
             reference_number=reference,
@@ -663,12 +667,15 @@ def record_payment():
         
         db.session.add(payment)
         
-        # Update fee balance if exists
-        balance = StudentFeeBalance.query.filter_by(student_id=student_id).first()
+        # Update balance
+        balance = StudentFeeBalance.query.filter_by(
+            student_id=student.user_id
+        ).first()
         if balance:
             balance.amount_paid += amount
-            balance.balance = max(0, balance.amount_due - balance.amount_paid)
-            balance.status = 'paid' if balance.balance <= 0 else 'partial'
+            balance.is_paid = balance.amount_paid >= balance.amount_due
+            if balance.is_paid:
+                balance.paid_on = datetime.utcnow()
         
         db.session.commit()
         

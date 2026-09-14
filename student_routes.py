@@ -1648,9 +1648,7 @@ def student_fees():
 
 
     fees = StudentFeeBalance.query.filter_by(
-
-        student_id=current_user.id
-
+        student_id=current_user.user_id
     ).order_by(StudentFeeBalance.id.desc()).all()
 
 
