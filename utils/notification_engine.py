@@ -61,6 +61,11 @@ NOTIFICATION_TYPES = {
     'announcement': {'label': 'Announcement', 'icon': 'bullhorn', 'color': '#0d6efd'},
     'event_reminder': {'label': 'Event Reminder', 'icon': 'calendar-alt', 'color': '#ffc107'},
     
+    # Live Class Events (LiveKit)
+    'live_class_scheduled': {'label': 'Live Class Scheduled', 'icon': 'calendar-plus', 'color': '#0d6efd'},
+    'live_class_started': {'label': 'Live Class Started', 'icon': 'video', 'color': '#dc3545'},
+    'live_class_ended': {'label': 'Live Class Ended', 'icon': 'video-slash', 'color': '#6c757d'},
+    
     # System Events
     'promotion': {'label': 'Promotion Eligible', 'icon': 'arrow-up', 'color': '#28a745'},
     'deferment': {'label': 'Deferment Approved', 'icon': 'pause', 'color': '#17a2b8'},
@@ -457,6 +462,70 @@ Make sure you're prepared and have reviewed all course materials.
         recipients=students,
         related_type='exam',
         related_id=exam.id,
+        send_email_copy=send_email,
+        priority='high'
+    )
+
+# =============================================================================
+# LIVE CLASS NOTIFICATIONS (LIVEKIT)
+# =============================================================================
+
+def notify_live_class_scheduled(meeting, send_email=True):
+    """Notify students when a live class is scheduled"""
+    registrations = StudentCourseRegistration.query.filter_by(course_id=meeting.course_id).all()
+    students = [reg.student for reg in registrations if reg.student]
+    
+    if not students:
+        return None
+        
+    start_str = meeting.scheduled_start.strftime('%d %b %Y, %I:%M %p') if meeting.scheduled_start else 'TBA'
+    
+    message = f"""
+A new live class has been scheduled!
+
+Course: {meeting.course.name}
+Topic: {meeting.title}
+Date & Time: {start_str}
+
+Please mark your calendar and join using the VTIU app or student portal.
+    """
+    
+    return create_notification(
+        notification_type='live_class_scheduled',
+        title=f"Class Scheduled: {meeting.title}",
+        message=message,
+        recipients=students,
+        related_type='meeting',
+        related_id=meeting.id,
+        send_email_copy=send_email,
+        priority='normal'
+    )
+
+def notify_live_class_started(meeting, send_email=True):
+    """Notify students when a live class starts (🔴 LIVE NOW)"""
+    registrations = StudentCourseRegistration.query.filter_by(course_id=meeting.course_id).all()
+    students = [reg.student for reg in registrations if reg.student]
+    
+    if not students:
+        return None
+        
+    message = f"""
+🔴 LIVE NOW: {meeting.title}
+
+The live class for {meeting.course.name} has just started!
+
+Teacher: {meeting.host.full_name}
+
+Join immediately to participate in the session.
+    """
+    
+    return create_notification(
+        notification_type='live_class_started',
+        title=f"🔴 LIVE NOW: {meeting.title}",
+        message=message,
+        recipients=students,
+        related_type='meeting',
+        related_id=meeting.id,
         send_email_copy=send_email,
         priority='high'
     )
