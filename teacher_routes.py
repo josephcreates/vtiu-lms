@@ -15,7 +15,7 @@ from sqlalchemy import and_, desc, func, asc
 from sqlalchemy.orm import joinedload
 from collections import defaultdict
 from utils.notifications import create_assignment_notification
-from utils.notification_engine import notify_quiz_created, notify_assignment_created, notify_assignment_graded
+from utils.notification_engine import notify_quiz_created, notify_assignment_created, notify_assignment_graded, notify_live_class_scheduled
 import os, uuid
 from utils.helpers import get_programme_choices, get_level_choices, get_course_choices
 from utils.academic_year import configured_academic_year
@@ -2141,12 +2141,19 @@ def add_meeting():
             )
             db.session.add(meeting)
             db.session.commit()
+            
+            # Notify students about scheduled class
+            try:
+                notify_live_class_scheduled(meeting, send_email=True)
+            except Exception as e:
+                current_app.logger.warning(f"Failed to send class schedule notification: {e}")
+
         except Exception as exc:
             db.session.rollback()
-            current_app.logger.exception('Failed to create Agora classroom: %s', exc)
+            current_app.logger.exception('Failed to create live classroom: %s', exc)
             flash('Could not create the live class. Please try again.', 'danger')
             return render_template('teacher/meeting_form.html', form=form)
-        flash("Agora live class created successfully!", "success")
+        flash("Live class created successfully!", "success")
         return redirect(url_for("teacher.meetings"))
 
     return render_template("teacher/meeting_form.html", form=form)
