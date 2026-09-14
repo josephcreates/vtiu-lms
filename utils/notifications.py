@@ -1,7 +1,7 @@
 # utils/notifications.py
 from datetime import datetime
 import json
-from models import db, Notification, NotificationRecipient, User, StudentProfile
+from models import db, Notification, NotificationRecipient, User, StudentProfile, StudentCourseRegistration
 from flask_login import current_user
 
 def create_assignment_notification(assignment):
@@ -111,6 +111,53 @@ def create_missed_call_notification(caller_name, target_user_id, conversation_id
 
     recipient = NotificationRecipient(notification_id=notice.id, user_id=target_user_id)
     db.session.add(recipient)
+
+    db.session.commit()
+    return notice
+
+def create_live_class_notification(meeting, status='scheduled'):
+    """Create notification for a Live Class (LiveKit)"""
+    title = f"Live Class: {meeting.title}"
+    if status == 'live':
+        title = f"🔴 LIVE NOW: {meeting.title}"
+        message = (
+            f"The live class for {meeting.course.name} has started!\n\n"
+            f"Topic: {meeting.title}\n"
+            f"Teacher: {meeting.host.full_name}\n\n"
+            f"Join now to participate."
+        )
+    else:
+        start_str = meeting.scheduled_start.strftime('%d %B %Y, %I:%M %p') if meeting.scheduled_start else 'TBA'
+        message = (
+            f"A new live class has been scheduled for {meeting.course.name}.\n\n"
+            f"Topic: {meeting.title}\n"
+            f"Date & Time: {start_str}\n\n"
+            f"Please mark your calendar."
+        )
+
+    notice = Notification(
+        type='live_class',
+        title=title,
+        message=message,
+        created_at=datetime.utcnow(),
+        related_type='meeting',
+        related_id=meeting.id,
+        sender_id=meeting.host_id,
+        sender_type='user'
+    )
+
+    db.session.add(notice)
+    db.session.flush()
+
+    # Find all students registered for this course
+    registrations = StudentCourseRegistration.query.filter_by(course_id=meeting.course_id).all()
+    recipients = [
+        NotificationRecipient(notification_id=notice.id, user_id=reg.student.user_id)
+        for reg in registrations if reg.student and reg.student.user_id
+    ]
+    
+    if recipients:
+        db.session.add_all(recipients)
 
     db.session.commit()
     return notice
