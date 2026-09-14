@@ -111,6 +111,9 @@ class Config:
         AGORA_APP_ID = os.environ.get("AGORA_APP_ID", "").strip()
         AGORA_APP_CERTIFICATE = os.environ.get("AGORA_APP_CERTIFICATE", "").strip()
         AGORA_CHANNEL_PROFILE = os.environ.get("AGORA_CHANNEL_PROFILE", "live").strip().lower()
+        LIVEKIT_URL = os.environ.get("LIVEKIT_URL", "").strip()
+        LIVEKIT_API_KEY = os.environ.get("LIVEKIT_API_KEY", "").strip()
+        LIVEKIT_API_SECRET = os.environ.get("LIVEKIT_API_SECRET", "").strip()
         REDIS_URL = os.environ.get("REDIS_URL", "").strip()
 
         # Legacy Zoom configuration is intentionally inactive. Keep these values

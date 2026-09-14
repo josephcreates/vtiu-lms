@@ -1,0 +1,112 @@
+{% extends "vclass/base_vclass.html" %}
+{% block title %}{{ meeting.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <div class="text-muted small">{{ meeting.course.name }}</div>
+      <h3 class="mb-0">{{ meeting.title }}</h3>
+    </div>
+    <a href="{{ url_for('teacher.meetings') if livekit_role == 'host' else url_for('vclass.student_meetings') }}" class="btn btn-outline-secondary">Leave</a>
+  </div>
+
+  <div id="room-error" class="alert alert-danger d-none"></div>
+  <div class="row g-3">
+    <div class="col-lg-9">
+      <div id="remote-video" class="video-stage"></div>
+      <div id="local-video" class="local-video"></div>
+    </div>
+    <div class="col-lg-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6>Live class</h6>
+          <div id="connection-status" class="small text-muted mb-3">Connecting...</div>
+          {% if livekit_role == 'host' %}
+          <button id="toggle-mic" class="btn btn-success w-100 mb-2" disabled>Mute microphone</button>
+          <button id="toggle-camera" class="btn btn-success w-100 mb-2" disabled>Turn camera off</button>
+          {% else %}
+          <p class="text-muted small mb-0">You are attending as a student.</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card shadow-sm mt-3">
+        <div class="card-body">
+          <h6>Class chat</h6>
+          <div id="class-chat-messages" class="chat-thread mb-3"></div>
+          <textarea id="class-chat-input" class="form-control form-control-sm" rows="2" placeholder="Ask a question for everyone..."></textarea>
+          <button id="class-chat-send" type="button" class="btn btn-primary btn-sm w-100 mt-2">Send to class</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .video-stage { min-height: 560px; background: #101820; border-radius: .75rem; padding: .75rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: .75rem; }
+  .video-tile { min-height: 300px; position: relative; background: #17212b; border-radius: .5rem; overflow: hidden; }
+  .video-tile video { width: 100%; height: 100%; object-fit: contain; }
+  .local-video { position: fixed; right: 23rem; bottom: 2rem; width: 220px; height: 140px; z-index: 5; }
+  .local-video .video-tile { min-height: 140px; border: 2px solid white; }
+  .chat-thread { max-height: 240px; overflow-y: auto; }
+  @media (max-width: 767px) { .video-stage { min-height: 420px; } .local-video { right: 1rem; bottom: 1rem; width: 150px; height: 100px; } }
+</style>
+
+<script src="https://unpkg.com/livekit-client@2.5.0/dist/livekit-client.umd.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const livekitUrl = {{ livekit_url|tojson }};
+  const livekitToken = {{ livekit_token|tojson }};
+  const isHost = {{ (livekit_role == 'host')|tojson }};
+  const room = new LivekitClient.Room({ adaptiveStream: true, dynacast: true });
+  const remoteVideo = document.getElementById('remote-video');
+  const localVideo = document.getElementById('local-video');
+  const status = document.getElementById('connection-status');
+  const errorBox = document.getElementById('room-error');
+
+  function showError(message) { errorBox.textContent = message; errorBox.classList.remove('d-none'); }
+  function tileFor(identity, local) {
+    const tile = document.createElement('div');
+    tile.className = 'video-tile';
+    tile.dataset.identity = identity;
+    (local ? localVideo : remoteVideo).appendChild(tile);
+    return tile;
+  }
+  function attachPublication(publication, participant, local) {
+    if (publication.kind !== 'video' && publication.kind !== 'audio') return;
+    const tile = publication.kind === 'video' ? tileFor(participant.identity, local) : null;
+    publication.track?.attach(tile || document.body);
+  }
+  room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => attachPublication(publication, participant, false));
+  room.on(LivekitClient.RoomEvent.TrackUnsubscribed, track => track.detach());
+  room.on(LivekitClient.RoomEvent.Disconnected, () => { status.textContent = 'Disconnected'; });
+
+  async function startRoom() {
+    try {
+      await room.connect(livekitUrl, livekitToken);
+      status.textContent = isHost ? 'Connected. Camera and microphone ready.' : 'Connected. Waiting for the teacher...';
+      if (!isHost) return;
+      await room.localParticipant.enableCameraAndMicrophone();
+      room.localParticipant.videoTrackPublications.forEach(publication => attachPublication(publication, room.localParticipant, true));
+      room.localParticipant.audioTrackPublications.forEach(publication => attachPublication(publication, room.localParticipant, true));
+      document.getElementById('toggle-mic').disabled = false;
+      document.getElementById('toggle-camera').disabled = false;
+      document.getElementById('toggle-mic').onclick = async event => {
+        const enabled = room.localParticipant.isMicrophoneEnabled;
+        await room.localParticipant.setMicrophoneEnabled(!enabled);
+        event.target.textContent = enabled ? 'Unmute microphone' : 'Mute microphone';
+      };
+      document.getElementById('toggle-camera').onclick = async event => {
+        const enabled = room.localParticipant.isCameraEnabled;
+        await room.localParticipant.setCameraEnabled(!enabled);
+        event.target.textContent = enabled ? 'Turn camera on' : 'Turn camera off';
+      };
+    } catch (error) {
+      console.error(error);
+      status.textContent = 'Unable to connect';
+      showError('Unable to join the live class. Check LiveKit configuration and try again.');
+    }
+  }
+  startRoom();
+</script>
+{% endblock %}

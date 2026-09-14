@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request, current_app
-from models import db, User, TeacherProfile, StudentProfile, Course, Meeting, CourseMaterial, Assignment, AssignmentSubmission, Quiz, StudentQuizSubmission, Question, Option, StudentAnswer, QuizAttempt, Recording, TeacherCourseAssignment, Message, Conversation, ConversationParticipant, SchoolSettings
+from flask_login import login_required, current_user
+from models import db, User, TeacherProfile, StudentProfile, StudentCourseRegistration, Course, Meeting, CourseMaterial, Assignment, AssignmentSubmission, Quiz, StudentQuizSubmission, Question, Option, StudentAnswer, QuizAttempt, Recording, TeacherCourseAssignment, Message, Conversation, ConversationParticipant, SchoolSettings
 from utils.agora import build_rtc_token
 from datetime import datetime
 import json
@@ -330,39 +331,69 @@ def get_chat_history(receiver_id):
         })
     return jsonify(result)
 
-# --- AGORA & WHITEBOARD ---
-@mobile_api_bp.route('/agora/token', methods=['POST'])
-def create_agora_token():
-    """Create a short-lived Agora RTC token for a channel participant."""
+# --- LIVEKIT ---
+@mobile_api_bp.route('/livekit/token', methods=['POST'])
+@login_required
+def create_livekit_token():
+    """Create a LiveKit token for the authenticated meeting participant."""
     data = request.get_json(silent=True) or {}
-    channel_name = data.get("channelName")
-    uid = data.get("uid")
-    role = data.get("role", "audience") # publisher or audience
-
-    if not channel_name or not uid:
-        return jsonify({'message': 'channelName and uid are required'}), 400
-
-    app_id = current_app.config.get('AGORA_APP_ID')
-    app_cert = current_app.config.get('AGORA_APP_CERTIFICATE')
-    
-    if not app_id or not app_cert:
-        return jsonify({'message': 'Agora not configured on server'}), 500
+    meeting_id = data.get('meetingId')
+    if not meeting_id:
+        return jsonify({'message': 'meetingId is required'}), 400
 
     try:
-        from utils.agora import build_rtc_token
-        # Map 'publisher' to 'host' for internal helper
-        role_str = 'host' if role == 'publisher' else 'audience'
-        token = build_rtc_token(app_id, app_cert, channel_name, int(uid), role_str)
+        meeting = Meeting.query.get(int(meeting_id))
+    except (TypeError, ValueError):
+        meeting = None
+    if not meeting:
+        return jsonify({'message': 'Meeting not found'}), 404
+
+    if current_user.role == 'teacher':
+        if meeting.host_id != current_user.id:
+            return jsonify({'message': 'You are not the meeting host'}), 403
+        is_publisher = True
+    elif current_user.role == 'student':
+        registered = StudentCourseRegistration.query.filter_by(
+            student_id=current_user.id,
+            course_id=meeting.course_id,
+        ).first()
+        if not registered:
+            return jsonify({'message': 'You are not registered for this class'}), 403
+        is_publisher = False
+    else:
+        return jsonify({'message': 'Unsupported user role'}), 403
+
+    try:
+        from utils.livekit_utils import build_livekit_token
+        import os
+        token = build_livekit_token(
+            meeting.meeting_code,
+            str(current_user.id),
+            current_user.full_name,
+            is_publisher,
+        )
         
         return jsonify({
-            "appId": app_id,
-            "channelName": channel_name,
-            "uid": int(uid),
             "token": token,
-            "expiresIn": 3600
+            "serverUrl": os.environ.get('LIVEKIT_URL', '')
         })
     except Exception as e:
-        current_app.logger.error(f"Agora token error: {e}")
+        current_app.logger.error(f"LiveKit token error: {e}")
+        return jsonify({'message': str(e)}), 500
+
+# --- AGORA & WHITEBOARD ---
+@mobile_api_bp.route('/vclass/agora/token/<channel_name>/<int:user_numeric_id>', methods=['GET'])
+def get_agora_token(channel_name, user_numeric_id):
+    app_id = current_app.config.get('AGORA_APP_ID')
+    app_cert = current_app.config.get('AGORA_APP_CERTIFICATE')
+    if not app_id: return jsonify({'message': 'Agora not configured'}), 500
+    if not app_cert: return jsonify({'token': '', 'appId': app_id})
+    try:
+        user = User.query.get(user_numeric_id)
+        role_str = 'host' if user and user.role == 'teacher' else 'audience'
+        token = build_rtc_token(app_id, app_cert, channel_name, user_numeric_id, role_str)
+        return jsonify({'token': token, 'appId': app_id})
+    except Exception as e:
         return jsonify({'message': str(e)}), 500
 
 @mobile_api_bp.route('/vclass/whiteboard/<int:meeting_id>', methods=['GET'])
