@@ -1247,6 +1247,61 @@ def api_join_meeting_by_code():
     })
 
 
+@vclass_bp.route('/api/agora/token', methods=['POST'])
+@login_required
+def create_agora_token():
+    """Return an authenticated Agora token for a meeting participant."""
+    payload = request.get_json(silent=True) or {}
+    meeting_id = payload.get('meetingId')
+    if not meeting_id:
+        return jsonify({'error': 'meetingId is required.'}), 400
+
+    try:
+        meeting = Meeting.query.get(int(meeting_id))
+    except (TypeError, ValueError):
+        meeting = None
+    if not meeting:
+        return jsonify({'error': 'Meeting not found.'}), 404
+
+    if current_user.role == 'teacher':
+        if meeting.host_id != current_user.id:
+            return jsonify({'error': 'You are not the host of this meeting.'}), 403
+        role = 'host'
+    elif current_user.role == 'student':
+        registered = StudentCourseRegistration.query.filter_by(
+            student_id=current_user.id,
+            course_id=meeting.course_id,
+        ).first()
+        if not registered:
+            return jsonify({'error': 'You are not registered for this class.'}), 403
+        role = 'audience'
+    else:
+        return jsonify({'error': 'Unsupported user role.'}), 403
+
+    try:
+        token = build_rtc_token(
+            current_app.config.get('AGORA_APP_ID'),
+            current_app.config.get('AGORA_APP_CERTIFICATE'),
+            meeting.meeting_code,
+            current_user.id,
+            role,
+            expires_in=3600,
+        )
+    except RuntimeError as exc:
+        current_app.logger.error('Agora token API error: %s', exc)
+        return jsonify({'error': 'Live class service is unavailable.'}), 503
+
+    return jsonify({
+        'appId': current_app.config.get('AGORA_APP_ID'),
+        'channelName': meeting.meeting_code,
+        'uid': current_user.id,
+        'token': token,
+        'role': 'publisher' if role == 'host' else 'audience',
+        'expiresIn': 3600,
+        'meetingId': meeting.id,
+    })
+
+
 @vclass_bp.route('/meeting/<int:meeting_id>')
 @login_required
 def join_meeting(meeting_id):
