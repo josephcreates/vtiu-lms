@@ -133,6 +133,10 @@
   const conversationId = {{ class_conversation_id|tojson }};
   const currentUserPublicId = {{ current_user_public_id|tojson }};
 
+  const videoGrid = document.getElementById('video-grid');
+  const statusLabel = document.getElementById('connection-status');
+  const videoStatus = document.getElementById('video-status');
+  const errorBox = document.getElementById('room-error');
   const { Room, RoomEvent, Track } = window.LivekitClient || {};
   if (!Room || !RoomEvent || !Track) {
     showError('LiveKit client failed to load. Please refresh or contact support.');
@@ -141,10 +145,6 @@
   }
 
   const room = Room ? new Room({ adaptiveStream: true, dynacast: true }) : null;
-  const videoGrid = document.getElementById('video-grid');
-  const statusLabel = document.getElementById('connection-status');
-  const videoStatus = document.getElementById('video-status');
-  const errorBox = document.getElementById('room-error');
 
   function showError(msg) {
     errorBox.textContent = msg;
