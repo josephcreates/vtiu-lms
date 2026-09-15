@@ -1306,7 +1306,7 @@ def create_agora_token():
 @vclass_bp.route('/meeting/<int:meeting_id>')
 @login_required
 def join_meeting(meeting_id):
-    """Render the classroom UI and feed it the Agora tokenized room contract."""
+    """Render the LiveKit classroom HTML and feed it the LiveKit room token contract."""
     meeting = Meeting.query.get_or_404(meeting_id)
 
     if current_user.role == 'teacher':
@@ -1325,16 +1325,16 @@ def join_meeting(meeting_id):
         abort(403)
 
     try:
-        token = build_rtc_token(
-            current_app.config.get('AGORA_APP_ID'),
-            current_app.config.get('AGORA_APP_CERTIFICATE'),
+        token = build_livekit_token(
+            current_app.config.get('LIVEKIT_API_KEY'),
+            current_app.config.get('LIVEKIT_API_SECRET'),
             meeting.meeting_code,
-            current_user.id,
-            role,
-            expires_in=3600,
+            str(current_user.id),
+            current_user.full_name,
+            'publisher' if role == 'host' else 'audience',
         )
     except RuntimeError as exc:
-        current_app.logger.error('Agora token error: %s', exc)
+        current_app.logger.error('LiveKit configuration error: %s', exc)
         flash(f'Live class service is unavailable: {exc}', 'danger')
         return redirect(
             url_for('teacher.meetings' if role == 'host' else 'vclass.student_meetings')
@@ -1350,18 +1350,18 @@ def join_meeting(meeting_id):
         except Exception as exc:
             current_app.logger.warning(f"Failed to send live class start notification: {exc}")
 
+    livekit_role = 'publisher' if role == 'host' else 'audience'
+
     return render_template(
-        'vclass/agora_room.html',
+        'vclass/livekit_room.html',
         meeting=meeting,
         class_conversation_id=class_conv.id,
         class_conversation_name=class_conv.get_meta().get('name') or meeting.title,
         current_user_public_id=current_user.public_id,
-        agora_app_id=current_app.config.get('AGORA_APP_ID'),
-        agora_channel=meeting.meeting_code,
-        agora_token=token,
-        agora_uid=current_user.id,
-        agora_role=role,
-        agora_channel_profile=current_app.config.get('AGORA_CHANNEL_PROFILE', 'live'),
+        livekit_url=current_app.config.get('LIVEKIT_URL'),
+        livekit_token=token,
+        livekit_role=livekit_role,
+        current_user=current_user,
     )
 
 @vclass_bp.route('/book-appointment', methods=['GET', 'POST'])
