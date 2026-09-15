@@ -1306,13 +1306,17 @@ def create_agora_token():
 @vclass_bp.route('/meeting/<int:meeting_id>')
 @login_required
 def join_meeting(meeting_id):
-    """Render a LiveKit room only for its teacher or registered students."""
+    """Return the backend LiveKit join payload for the authenticated meeting user.
+
+    This route intentionally avoids rendering the browser LiveKit HTML page.
+    The backend is the authoritative source of the room contract.
+    """
     meeting = Meeting.query.get_or_404(meeting_id)
 
     if current_user.role == 'teacher':
         if meeting.host_id != current_user.id:
             abort(403)
-        role = 'host'
+        role = 'publisher'
     elif current_user.role == 'student':
         registered_course_ids = {
             registration.course_id
@@ -1329,39 +1333,45 @@ def join_meeting(meeting_id):
             current_app.config.get('LIVEKIT_API_KEY'),
             current_app.config.get('LIVEKIT_API_SECRET'),
             meeting.meeting_code,
-            current_user.id,
+            str(current_user.id),
             current_user.full_name,
-            'publisher' if role == 'host' else 'audience',
+            role,
         )
     except RuntimeError as exc:
         current_app.logger.error('LiveKit configuration error: %s', exc)
-        flash(f'Live class service is unavailable: {exc}', 'danger')
-        return redirect(
-            url_for('teacher.meetings' if role == 'host' else 'vclass.student_meetings')
-        )
+        return jsonify({
+            'message': f'Live class service is unavailable: {exc}',
+            'error': 'livekit_not_configured',
+        }), 503
+    except Exception as exc:
+        current_app.logger.error('LiveKit token error: %s', exc)
+        return jsonify({
+            'message': 'Unable to create live class join token.',
+            'error': str(exc),
+        }), 500
 
     class_conv = ensure_meeting_class_conversation(meeting)
 
     # Notify students that class is starting if the teacher is joining
-    if role == 'host':
+    if role == 'publisher':
         try:
             from utils.notification_engine import notify_live_class_started
-            # Simple check: only notify if it's the first time or recently started
-            # For now, we'll just send it when the teacher joins
             notify_live_class_started(meeting, send_email=True)
-        except Exception as e:
-            current_app.logger.warning(f"Failed to send live class start notification: {e}")
+        except Exception as exc:
+            current_app.logger.warning(f"Failed to send live class start notification: {exc}")
 
-    return render_template(
-        'vclass/livekit_room.html',
-        meeting=meeting,
-        class_conversation_id=class_conv.id,
-        class_conversation_name=class_conv.get_meta().get('name') or meeting.title,
-        current_user_public_id=current_user.public_id,
-        livekit_url=current_app.config.get('LIVEKIT_URL'),
-        livekit_token=token,
-        livekit_role=role,
-    )
+    return jsonify({
+        'token': token,
+        'serverUrl': current_app.config.get('LIVEKIT_URL', ''),
+        'roomName': meeting.meeting_code,
+        'meetingId': meeting.id,
+        'meetingTitle': meeting.title,
+        'role': role,
+        'displayName': current_user.full_name,
+        'classConversationId': class_conv.id,
+        'classConversationName': class_conv.get_meta().get('name') or meeting.title,
+        'currentUserPublicId': current_user.public_id,
+    })
 
 @vclass_bp.route('/book-appointment', methods=['GET', 'POST'])
 @login_required
