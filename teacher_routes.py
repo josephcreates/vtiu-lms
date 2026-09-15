@@ -2129,13 +2129,18 @@ def add_meeting():
     form.course_id.choices = [(a.course.id, a.course.name) for a in profile.assignments]
 
     if form.validate_on_submit():
+        room_code = (form.room_code.data or '').strip().upper()
+        if Meeting.query.filter_by(meeting_code=room_code).first():
+            form.room_code.errors.append('This room code is already in use. Please choose another one.')
+            return render_template('teacher/meeting_form.html', form=form)
+
         try:
             meeting = Meeting(
                 title=form.title.data,
                 description=form.description.data,
                 host_id=current_user.id,
                 course_id=form.course_id.data,
-                meeting_code=f'meeting-{uuid.uuid4().hex}',
+                meeting_code=room_code,
                 scheduled_start=form.scheduled_start.data,
                 scheduled_end=form.scheduled_end.data,
             )
@@ -2175,15 +2180,23 @@ def edit_meeting(meeting_id):
         return redirect(url_for('teacher.dashboard'))
 
     form = MeetingForm(obj=meeting)
+    form.room_code.data = meeting.meeting_code
     form.course_id.choices = [(a.course.id, a.course.name) for a in profile.assignments]
 
     if form.validate_on_submit():
         if form.scheduled_end.data <= form.scheduled_start.data:
             form.scheduled_end.errors.append('End time must be after the start time.')
         else:
+            room_code = (form.room_code.data or '').strip().upper()
+            existing = Meeting.query.filter(Meeting.meeting_code == room_code, Meeting.id != meeting.id).first()
+            if existing:
+                form.room_code.errors.append('This room code is already in use. Please choose another one.')
+                return render_template('teacher/meeting_form.html', form=form, meeting=meeting)
+
             meeting.title = form.title.data
             meeting.description = form.description.data
             meeting.course_id = form.course_id.data
+            meeting.meeting_code = room_code
             meeting.scheduled_start = form.scheduled_start.data
             meeting.scheduled_end = form.scheduled_end.data
             db.session.commit()
