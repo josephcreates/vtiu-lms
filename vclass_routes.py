@@ -42,11 +42,42 @@ def meeting_id_from_room_code(room_code):
         return None
     return value or None
 
+
+def resolve_meeting_from_room_code(room_code):
+    """Resolve a meeting from either the teacher-supplied LiveKit room code or legacy VTIU IDs."""
+    normalized = (room_code or '').strip().upper()
+    if not normalized:
+        return None
+
+    meeting = Meeting.query.filter_by(meeting_code=normalized).first()
+    if meeting:
+        return meeting
+
+    legacy_meeting_id = meeting_id_from_room_code(normalized)
+    if legacy_meeting_id:
+        return Meeting.query.get(legacy_meeting_id)
+
+    return None
+
 ALLOWED_EXTENSIONS = {'.doc', '.docx', '.xls', '.xlsx', '.pdf', '.ppt', '.txt'}
 UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads", "assignments")
 
 def allowed_file(filename):
     return os.path.splitext(filename)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def normalize_livekit_url(raw_url):
+    """Normalize LiveKit URL for browser WebSocket connections."""
+    if not raw_url:
+        return raw_url
+    url = raw_url.strip()
+    if url.startswith('https://'):
+        return 'wss://' + url[len('https://'):]
+    if url.startswith('http://'):
+        return 'ws://' + url[len('http://'):]
+    if url.startswith('wss://') or url.startswith('ws://'):
+        return url
+    return f'wss://{url}'
 
 
 def ensure_meeting_class_conversation(meeting):
@@ -1174,8 +1205,7 @@ def join_meeting_by_code():
     if not room_code:
         return render_template('vclass/join_by_code.html')
 
-    meeting_id = meeting_id_from_room_code(room_code)
-    meeting = Meeting.query.get(meeting_id) if meeting_id else None
+    meeting = resolve_meeting_from_room_code(room_code)
     if not meeting:
         flash('That room code is not valid. Ask the teacher to share it again.', 'danger')
         return render_template('vclass/join_by_code.html', room_code=room_code), 404
@@ -1205,8 +1235,7 @@ def api_join_meeting_by_code():
         return jsonify({'error': 'Only students can use this endpoint.'}), 403
 
     room_code = (request.args.get('room_code') or '').strip().upper()
-    meeting_id = meeting_id_from_room_code(room_code)
-    meeting = Meeting.query.get(meeting_id) if meeting_id else None
+    meeting = resolve_meeting_from_room_code(room_code)
     if not meeting:
         return jsonify({'error': 'Invalid room code.'}), 404
 
@@ -1351,6 +1380,7 @@ def join_meeting(meeting_id):
             current_app.logger.warning(f"Failed to send live class start notification: {exc}")
 
     livekit_role = 'publisher' if role == 'host' else 'audience'
+    livekit_url = normalize_livekit_url(current_app.config.get('LIVEKIT_URL'))
 
     return render_template(
         'vclass/livekit_room.html',
@@ -1358,7 +1388,7 @@ def join_meeting(meeting_id):
         class_conversation_id=class_conv.id,
         class_conversation_name=class_conv.get_meta().get('name') or meeting.title,
         current_user_public_id=current_user.public_id,
-        livekit_url=current_app.config.get('LIVEKIT_URL'),
+        livekit_url=livekit_url,
         livekit_token=token,
         livekit_role=livekit_role,
         current_user=current_user,
