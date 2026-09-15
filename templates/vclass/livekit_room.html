@@ -7,19 +7,29 @@
     <div>
       <div class="text-muted small">{{ meeting.course.name }}</div>
       <h3 class="mb-0">{{ meeting.title }}</h3>
+      <div id="connection-status" class="small text-primary">Initializing...</div>
     </div>
-    <a href="{{ url_for('teacher.meetings') if livekit_role == 'host' else url_for('vclass.student_meetings') }}" class="btn btn-outline-secondary">Leave</a>
+    <div class="d-flex gap-2">
+      <button id="toggle-mic" class="btn btn-outline-success" disabled>
+        <i class="fas fa-microphone"></i>
+      </button>
+      <button id="toggle-camera" class="btn btn-outline-success" disabled>
+        <i class="fas fa-video"></i>
+      </button>
+      <a href="{{ url_for('teacher.meetings') if livekit_role == 'publisher' else url_for('vclass.student_meetings') }}" class="btn btn-danger">Leave Class</a>
+    </div>
   </div>
 
   <div id="room-error" class="alert alert-danger d-none" role="alert"></div>
+
   <div class="row g-3">
-    <div id="video-panel" class="col-lg-9">
+    <div class="col-lg-9">
       <div class="video-panel-header d-flex align-items-center justify-content-between mb-2">
         <div>
           <span class="video-panel-title">Live classroom</span>
-          <span id="connection-status" class="video-status ms-2">Connecting...</span>
+          <span id="video-status" class="video-status ms-2">Connecting...</span>
         </div>
-        {% if livekit_role == 'host' %}
+        {% if livekit_role == 'publisher' %}
         <div class="video-header-meta">
           <span class="participant-count"><i class="fas fa-users" aria-hidden="true"></i> <strong id="participant-count">0</strong> participants</span>
           <span class="live-indicator"><span></span> Teacher preview</span>
@@ -29,11 +39,8 @@
         {% endif %}
       </div>
 
-      <div class="video-stage{% if livekit_role == 'host' %} teacher-video-stage{% endif %}">
-        <div id="remote-video" class="video-grid"></div>
-        <div id="local-video" class="video-tile local-video-tile d-none">
-          <div class="video-label">You</div>
-        </div>
+      <div class="video-stage{% if livekit_role == 'publisher' %} teacher-video-stage{% endif %}">
+        <div id="video-grid" class="video-grid"></div>
       </div>
     </div>
 
@@ -43,20 +50,18 @@
           <h6>Class controls</h6>
           <div class="btn-group w-100 mb-3" role="group" aria-label="Class view">
             <button id="show-video-view" type="button" class="btn btn-primary btn-sm">Video</button>
-            <button id="show-board-view" type="button" class="btn btn-outline-primary btn-sm d-none">Whiteboard</button>
           </div>
-
-          {% if livekit_role == 'host' %}
+          {% if livekit_role == 'publisher' %}
           <label for="camera-source" class="form-label small text-muted mt-2 mb-1">Camera source</label>
           <select id="camera-source" class="form-select form-select-sm mb-2" aria-label="Choose camera source">
             <option value="">Detecting cameras...</option>
           </select>
-          <button id="toggle-mic" class="btn btn-success w-100 mb-2" disabled>Mute microphone</button>
-          <button id="toggle-camera" class="btn btn-success w-100 mb-2" disabled>Turn camera off</button>
-          <button id="start-live" class="btn btn-danger w-100 mb-2">
+          <button id="toggle-mic" class="btn btn-success w-100 mb-2">Mute microphone</button>
+          <button id="toggle-camera" class="btn btn-success w-100 mb-2">Turn camera off</button>
+          <button id="start-live" class="btn btn-danger w-100 mb-2" disabled>
             <i class="fas fa-video me-1" aria-hidden="true"></i>Start live class
           </button>
-          <button id="share-screen" class="btn btn-outline-primary w-100">Share screen</button>
+          <button id="share-screen" class="btn btn-outline-primary w-100" disabled>Share screen</button>
           <div id="broadcast-status" class="small text-muted mt-2">Preparing camera...</div>
           {% else %}
           <p class="text-muted small mb-0">You are attending as a student. The teacher controls the broadcast.</p>
@@ -70,12 +75,13 @@
             <h6 class="mb-0">Class chat</h6>
             <span class="badge bg-primary-subtle text-primary small">Live</span>
           </div>
-          <div id="class-chat-messages" class="chat-thread mb-3" aria-live="polite"></div>
+          <div id="chat-messages" class="chat-thread mb-3" aria-live="polite"></div>
+
           <div class="input-group input-group-sm">
-            <textarea id="class-chat-input" class="form-control" rows="2" placeholder="Ask a question for everyone..."></textarea>
+            <textarea id="chat-input" class="form-control" rows="2" placeholder="Ask a question for everyone..."></textarea>
           </div>
           <div class="d-grid gap-2 mt-2">
-            <button id="class-chat-send" type="button" class="btn btn-primary btn-sm">Send to class</button>
+            <button id="chat-send" type="button" class="btn btn-primary btn-sm">Send to class</button>
           </div>
         </div>
       </div>
@@ -91,25 +97,28 @@
   .video-header-meta { display: inline-flex; align-items: center; gap: 1rem; }
   .participant-count { color: #526273; font-size: .78rem; font-weight: 600; }
   .participant-count i { color: #0d6efd; margin-right: .15rem; }
-  .video-stage { min-height: 560px; height: min(70vh, 760px); padding: .75rem; background: #0f1720; border: 1px solid #273646; border-radius: .9rem; position: relative; overflow: hidden; box-shadow: 0 1rem 2.5rem rgba(15,23,32,.14); display: block; }
-  .video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: .75rem; min-height: 100%; }
+  .video-stage { min-height: 560px; height: min(70vh, 760px); padding: .75rem; background: #0f1720; border: 1px solid #273646; border-radius: .9rem; position: relative; overflow: hidden; box-shadow: 0 1rem 2.5rem rgba(15,23,32,.14); }
+  .video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: .75rem; min-height: 100%; align-content: start; }
   .video-tile { min-height: 320px; height: 100%; background: #17212b; border-radius: .5rem; position: relative; overflow: hidden; }
   .video-tile video { width: 100%; height: 100%; object-fit: cover; }
-  .teacher-video-stage .video-grid { display: none; }
-  .teacher-video-stage .local-video-tile { position: absolute; inset: .75rem; z-index: 2; width: auto; height: auto; min-height: 0; border: 0; border-radius: .55rem; box-shadow: none; }
-  .teacher-video-stage .local-video-tile video { object-fit: contain; background: #17212b; }
+  .teacher-video-stage .video-grid { display: grid; }
   .local-video-tile { position: absolute; z-index: 2; right: 1.25rem; bottom: 1.25rem; width: min(28%, 260px); height: 180px; min-height: 180px; border: 2px solid #fff; box-shadow: 0 .35rem 1rem rgba(0,0,0,.35); }
   .video-label { position: absolute; z-index: 1; left: .75rem; bottom: .5rem; color: white; background: rgba(0,0,0,.55); padding: .2rem .45rem; border-radius: .25rem; }
   .panel-hidden { display: none !important; }
   .card.border-0.shadow-sm { border: 1px solid #e4eaf0 !important; border-radius: .8rem; box-shadow: 0 .45rem 1.4rem rgba(31,45,61,.07) !important; }
   .chat-thread { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: .5rem; background: #f5f7fa; border-radius: .6rem; padding: .5rem; }
+  .chat-messages { display: flex; flex-direction: column; gap: 0.75rem; }
+  .message { max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 0.9rem; }
+  .message-mine { align-self: flex-end; background-color: #0d6efd; color: white; border-bottom-right-radius: 2px; }
+  .message-others { align-self: flex-start; background-color: #f1f3f5; color: #212529; border-bottom-left-radius: 2px; }
+  .message-sender { font-size: .7rem; font-weight: 700; margin-bottom: 2px; opacity: 0.8; }
   .class-chat-message { background: white; border: 1px solid #e9ecef; border-radius: .5rem; padding: .5rem .6rem; }
   .class-chat-message strong { display: block; font-size: .75rem; margin-bottom: .15rem; }
   .class-chat-message small { color: #6c757d; }
+
   @media (max-width: 767.98px) {
     .video-stage { min-height: 420px; height: 62vh; }
     .video-tile { min-height: 260px; }
-    .local-video-tile { width: 38%; height: 130px; min-height: 130px; right: .75rem; bottom: .75rem; }
   }
 </style>
 
@@ -118,78 +127,153 @@
 <script>
   const livekitUrl = {{ livekit_url|tojson }};
   const livekitToken = {{ livekit_token|tojson }};
-  const isHost = {{ (livekit_role == 'host')|tojson }};
-  const room = new LivekitClient.Room({ adaptiveStream: true, dynacast: true });
-  const remoteVideo = document.getElementById('remote-video');
-  const localVideo = document.getElementById('local-video');
-  const status = document.getElementById('connection-status');
-  const errorBox = document.getElementById('room-error');
-  const participantCount = document.getElementById('participant-count');
-  const socket = io();
+  const livekitRole = {{ livekit_role|tojson }};
+  const isPublisher = livekitRole === 'publisher';
 
-  function showError(message) { errorBox.textContent = message; errorBox.classList.remove('d-none'); }
-  function tileFor(identity, local) {
-    const tile = document.createElement('div');
-    tile.className = 'video-tile';
-    tile.dataset.identity = identity;
-    if (local) {
-      tile.id = 'local-video-tile';
-      localVideo.classList.remove('d-none');
-      localVideo.innerHTML = '';
-      localVideo.appendChild(tile);
-    } else {
-      remoteVideo.appendChild(tile);
+  const conversationId = {{ class_conversation_id|tojson }};
+  const currentUserPublicId = {{ current_user_public_id|tojson }};
+
+  const room = new LivekitClient.Room({ adaptiveStream: true, dynacast: true });
+  const videoGrid = document.getElementById('video-grid');
+  const statusLabel = document.getElementById('connection-status');
+  const videoStatus = document.getElementById('video-status');
+  const errorBox = document.getElementById('room-error');
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.classList.remove('d-none');
+  }
+
+  function createVideoTile(participant) {
+    let tile = document.getElementById(`tile-${participant.identity}`);
+    if (!tile) {
+      tile = document.createElement('div');
+      tile.id = `tile-${participant.identity}`;
+      tile.className = 'video-tile';
+      tile.innerHTML = `
+        <video autoplay playsinline muted="${participant.identity === room.localParticipant.identity}"></video>
+        <div class="participant-label">${participant.name || participant.identity}</div>
+      `;
+      videoGrid.appendChild(tile);
     }
     return tile;
   }
-  function attachPublication(publication, participant, local) {
-    if (publication.kind !== 'video' && publication.kind !== 'audio') return;
-    const tile = publication.kind === 'video' ? tileFor(participant.identity, local) : null;
-    if (publication.kind === 'video') {
-      publication.track?.attach(tile);
-    } else if (publication.kind === 'audio') {
-      publication.track?.attach(undefined);
+
+  function attachRemoteTrack(track, publication, participant) {
+    if (track.kind === LivekitClient.Track.Kind.Video) {
+      const tile = createVideoTile(participant);
+      const video = tile.querySelector('video');
+      if (video) track.attach(video);
+    } else if (track.kind === LivekitClient.Track.Kind.Audio) {
+      track.attach();
     }
   }
 
-  room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-    attachPublication(publication, participant, false);
-  });
-  room.on(LivekitClient.RoomEvent.TrackPublished, (publication, participant) => {
-    if (publication.kind === 'video') {
-      participantCount.textContent = String(room.participants.size || 0);
+  function detachRemoteTrack(track, publication, participant) {
+    track.detach();
+    if (track.kind === LivekitClient.Track.Kind.Video) {
+      const tile = document.getElementById(`tile-${participant.identity}`);
+      if (tile) tile.remove();
     }
-  });
-  room.on(LivekitClient.RoomEvent.TrackUnsubscribed, track => track.detach());
-  room.on(LivekitClient.RoomEvent.Disconnected, () => { status.textContent = 'Disconnected'; });
+  }
 
-  async function startRoom() {
+  room.on(LivekitClient.RoomEvent.TrackSubscribed, attachRemoteTrack);
+  room.on(LivekitClient.RoomEvent.TrackUnsubscribed, detachRemoteTrack);
+  room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (p) => {
+    const tile = document.getElementById(`tile-${p.identity}`);
+    if (tile) tile.remove();
+  });
+  room.on(LivekitClient.RoomEvent.Disconnected, () => {
+    statusLabel.textContent = 'Disconnected';
+    statusLabel.className = 'small text-danger';
+    if (videoStatus) videoStatus.textContent = 'Disconnected';
+  });
+
+  async function connectToLiveKit() {
     try {
       await room.connect(livekitUrl, livekitToken);
-      status.textContent = isHost ? 'Connected. Camera and microphone ready.' : 'Connected. Waiting for the teacher...';
-      participantCount.textContent = String(room.participants.size || 1);
-      if (!isHost) return;
-      await room.localParticipant.enableCameraAndMicrophone();
-      room.localParticipant.videoTrackPublications.forEach(publication => attachPublication(publication, room.localParticipant, true));
-      room.localParticipant.audioTrackPublications.forEach(publication => attachPublication(publication, room.localParticipant, true));
-      document.getElementById('toggle-mic').disabled = false;
-      document.getElementById('toggle-camera').disabled = false;
-      document.getElementById('toggle-mic').onclick = async event => {
-        const enabled = room.localParticipant.isMicrophoneEnabled;
-        await room.localParticipant.setMicrophoneEnabled(!enabled);
-        event.target.textContent = enabled ? 'Unmute microphone' : 'Mute microphone';
-      };
-      document.getElementById('toggle-camera').onclick = async event => {
-        const enabled = room.localParticipant.isCameraEnabled;
-        await room.localParticipant.setCameraEnabled(!enabled);
-        event.target.textContent = enabled ? 'Turn camera on' : 'Turn camera off';
-      };
-    } catch (error) {
-      console.error(error);
-      status.textContent = 'Unable to connect';
-      showError('Unable to join the live class. Check LiveKit configuration and try again.');
+      statusLabel.textContent = isPublisher ? '🔴 Broadcasting Live' : '🟢 Connected';
+      statusLabel.className = isPublisher ? 'small text-danger fw-bold' : 'small text-success fw-bold';
+      if (videoStatus) videoStatus.textContent = isPublisher ? 'Live and broadcasting' : 'Connected';
+
+      if (isPublisher) {
+        await room.localParticipant.setCameraEnabled(true);
+        await room.localParticipant.setMicrophoneEnabled(true);
+        createVideoTile(room.localParticipant);
+        const localVideo = document.querySelector(`#tile-${room.localParticipant.identity} video`);
+        if (room.localParticipant.videoTrackPublications?.values) {
+          for (const publication of room.localParticipant.videoTrackPublications.values()) {
+            if (publication.track) publication.track.attach(localVideo);
+          }
+        }
+
+        document.getElementById('toggle-mic').disabled = false;
+        document.getElementById('toggle-camera').disabled = false;
+
+        document.getElementById('toggle-mic').onclick = async () => {
+          const enabled = room.localParticipant.isMicrophoneEnabled;
+          await room.localParticipant.setMicrophoneEnabled(!enabled);
+          const micBtn = document.getElementById('toggle-mic');
+          micBtn.classList.toggle('btn-outline-success', !enabled);
+          micBtn.classList.toggle('btn-success', enabled);
+          micBtn.querySelector('i').className = enabled ? 'fas fa-microphone-slash' : 'fas fa-microphone';
+        };
+
+        document.getElementById('toggle-camera').onclick = async () => {
+          const enabled = room.localParticipant.isCameraEnabled;
+          await room.localParticipant.setCameraEnabled(!enabled);
+          const cameraBtn = document.getElementById('toggle-camera');
+          cameraBtn.classList.toggle('btn-outline-success', !enabled);
+          cameraBtn.classList.toggle('btn-success', enabled);
+          cameraBtn.querySelector('i').className = enabled ? 'fas fa-video-slash' : 'fas fa-video';
+        };
+      }
+    } catch (e) {
+      console.error(e);
+      showError('Failed to connect to LiveKit. Please refresh or try again.');
     }
   }
-  startRoom();
+
+  const socket = io();
+  const chatMessages = document.getElementById('chat-messages');
+  const chatInput = document.getElementById('chat-input');
+  const chatSend = document.getElementById('chat-send');
+
+  function addMessage(msg, isMine) {
+    const div = document.createElement('div');
+    div.className = `message ${isMine ? 'message-mine' : 'message-others'}`;
+    div.innerHTML = `
+      <div class="message-sender">${msg.sender_name || 'Anonymous'}</div>
+      <div class="message-text">${msg.content}</div>
+    `;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  socket.on('connect', () => {
+    socket.emit('join', { room: conversationId });
+  });
+
+  socket.on('new_message', (data) => {
+    if (data.conversation_id == conversationId) {
+      addMessage(data.message, data.message.sender_public_id === currentUserPublicId);
+    }
+  });
+
+  chatSend.onclick = sendMessage;
+  chatInput.onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
+
+  function sendMessage() {
+    const text = chatInput.value.trim();
+    if (!text || !conversationId) return;
+
+    socket.emit('send_message', {
+      conversation_id: conversationId,
+      content: text
+    });
+    chatInput.value = '';
+  }
+
+  connectToLiveKit();
 </script>
 {% endblock %}
