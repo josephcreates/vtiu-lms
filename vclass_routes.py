@@ -1306,17 +1306,13 @@ def create_agora_token():
 @vclass_bp.route('/meeting/<int:meeting_id>')
 @login_required
 def join_meeting(meeting_id):
-    """Return the backend LiveKit join payload for the authenticated meeting user.
-
-    This route intentionally avoids rendering the browser LiveKit HTML page.
-    The backend is the authoritative source of the room contract.
-    """
+    """Render the classroom UI and feed it the Agora tokenized room contract."""
     meeting = Meeting.query.get_or_404(meeting_id)
 
     if current_user.role == 'teacher':
         if meeting.host_id != current_user.id:
             abort(403)
-        role = 'publisher'
+        role = 'host'
     elif current_user.role == 'student':
         registered_course_ids = {
             registration.course_id
@@ -1329,49 +1325,44 @@ def join_meeting(meeting_id):
         abort(403)
 
     try:
-        token = build_livekit_token(
-            current_app.config.get('LIVEKIT_API_KEY'),
-            current_app.config.get('LIVEKIT_API_SECRET'),
+        token = build_rtc_token(
+            current_app.config.get('AGORA_APP_ID'),
+            current_app.config.get('AGORA_APP_CERTIFICATE'),
             meeting.meeting_code,
-            str(current_user.id),
-            current_user.full_name,
+            current_user.id,
             role,
+            expires_in=3600,
         )
     except RuntimeError as exc:
-        current_app.logger.error('LiveKit configuration error: %s', exc)
-        return jsonify({
-            'message': f'Live class service is unavailable: {exc}',
-            'error': 'livekit_not_configured',
-        }), 503
-    except Exception as exc:
-        current_app.logger.error('LiveKit token error: %s', exc)
-        return jsonify({
-            'message': 'Unable to create live class join token.',
-            'error': str(exc),
-        }), 500
+        current_app.logger.error('Agora token error: %s', exc)
+        flash(f'Live class service is unavailable: {exc}', 'danger')
+        return redirect(
+            url_for('teacher.meetings' if role == 'host' else 'vclass.student_meetings')
+        )
 
     class_conv = ensure_meeting_class_conversation(meeting)
 
     # Notify students that class is starting if the teacher is joining
-    if role == 'publisher':
+    if role == 'host':
         try:
             from utils.notification_engine import notify_live_class_started
             notify_live_class_started(meeting, send_email=True)
         except Exception as exc:
             current_app.logger.warning(f"Failed to send live class start notification: {exc}")
 
-    return jsonify({
-        'token': token,
-        'serverUrl': current_app.config.get('LIVEKIT_URL', ''),
-        'roomName': meeting.meeting_code,
-        'meetingId': meeting.id,
-        'meetingTitle': meeting.title,
-        'role': role,
-        'displayName': current_user.full_name,
-        'classConversationId': class_conv.id,
-        'classConversationName': class_conv.get_meta().get('name') or meeting.title,
-        'currentUserPublicId': current_user.public_id,
-    })
+    return render_template(
+        'vclass/agora_room.html',
+        meeting=meeting,
+        class_conversation_id=class_conv.id,
+        class_conversation_name=class_conv.get_meta().get('name') or meeting.title,
+        current_user_public_id=current_user.public_id,
+        agora_app_id=current_app.config.get('AGORA_APP_ID'),
+        agora_channel=meeting.meeting_code,
+        agora_token=token,
+        agora_uid=current_user.id,
+        agora_role=role,
+        agora_channel_profile=current_app.config.get('AGORA_CHANNEL_PROFILE', 'live'),
+    )
 
 @vclass_bp.route('/book-appointment', methods=['GET', 'POST'])
 @login_required
