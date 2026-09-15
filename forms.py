@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import HiddenField, StringField, PasswordField, SubmitField, SelectField, DateField, TextAreaField, MultipleFileField, SelectMultipleField, BooleanField, IntegerField, FloatField, FieldList, FormField
-from wtforms.validators import DataRequired, Length, InputRequired, Email, Optional, NumberRange, EqualTo, ValidationError
+from wtforms.validators import DataRequired, Length, InputRequired, Email, Optional, NumberRange, EqualTo, ValidationError, Regexp
 from wtforms.fields import DateTimeLocalField, DateTimeField
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from utils.helpers import get_programme_choices
@@ -520,6 +520,15 @@ class MeetingForm(FlaskForm):
     title = StringField('Meeting Title', validators=[DataRequired()])
     description = TextAreaField('Description')
     course_id = SelectField('Course', coerce=int, validators=[DataRequired()])
+    room_code = StringField(
+        'Room code',
+        validators=[
+            DataRequired(),
+            Length(min=6, max=8),
+            Regexp(r'^[A-Z0-9]{6,8}$', message='Room code must be 6-8 uppercase letters and numbers only.')
+        ],
+        render_kw={'placeholder': 'e.g. 7FJ329', 'autocomplete': 'off'}
+    )
     scheduled_start = DateTimeLocalField('Start Date & Time', format='%Y-%m-%dT%H:%M', validators=[DataRequired()])
     scheduled_end = DateTimeLocalField('End Date & Time', format='%Y-%m-%dT%H:%M', validators=[DataRequired()])
     submit = SubmitField('Save Meeting')
